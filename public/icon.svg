@@ -1,0 +1,43 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Wrexlyn icon</title>
+  <desc id="desc">Original high-end Wrexlyn monogram icon with a sculpted W and X inside a dark enamel tile.</desc>
+  <defs>
+    <linearGradient id="enamel" x1="87" y1="42" x2="418" y2="477" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111A22"/>
+      <stop offset="0.5" stop-color="#0D151A"/>
+      <stop offset="1" stop-color="#15100D"/>
+    </linearGradient>
+    <linearGradient id="rim" x1="104" y1="70" x2="406" y2="432" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4E7C8"/>
+      <stop offset="0.48" stop-color="#78D7CE"/>
+      <stop offset="1" stop-color="#4B8FF0"/>
+    </linearGradient>
+    <linearGradient id="metal" x1="155" y1="129" x2="349" y2="355" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8E6"/>
+      <stop offset="0.42" stop-color="#BCEDE8"/>
+      <stop offset="0.72" stop-color="#6BBEB8"/>
+      <stop offset="1" stop-color="#6FA8FF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(258 193) rotate(90) scale(219 205)">
+      <stop stop-color="#8AE5DC" stop-opacity="0.2"/>
+      <stop offset="0.62" stop-color="#8AE5DC" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#8AE5DC" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="shadow" x="52" y="54" width="408" height="408" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#020607" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#enamel)"/>
+  <rect x="34" y="34" width="444" height="444" rx="80" fill="url(#glow)"/>
+  <g filter="url(#shadow)">
+    <path d="M106 151L256 75L406 151V348L256 437L106 348V151Z" fill="#101B21"/>
+    <path d="M106 151L256 75L406 151V348L256 437L106 348V151Z" stroke="url(#rim)" stroke-width="10" stroke-linejoin="round"/>
+    <path d="M132 166L256 103L380 166V333L256 407L132 333V166Z" stroke="#F7F0D9" stroke-opacity="0.17" stroke-width="3" stroke-linejoin="round"/>
+  </g>
+  <path d="M157 164L203 337L256 238L309 337L355 164" stroke="url(#metal)" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M182 159L330 351" stroke="#9CCBFF" stroke-width="22" stroke-linecap="round" opacity="0.92"/>
+  <path d="M330 159L182 351" stroke="#8FE5DC" stroke-width="22" stroke-linecap="round" opacity="0.96"/>
+  <path d="M188 159L325 337" stroke="#FFF8E6" stroke-width="7" stroke-linecap="round" opacity="0.52"/>
+  <path d="M324 160L190 334" stroke="#EDFCF8" stroke-width="7" stroke-linecap="round" opacity="0.46"/>
+  <circle cx="256" cy="238" r="7" fill="#FFF8E6" opacity="0.86"/>
+</svg>

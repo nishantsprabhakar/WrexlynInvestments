@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+.env
+
+# Runtime data — deal records and generated documents are per-install state,
+# not source.
+data/
+workspace/

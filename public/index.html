@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="robots" content="noindex, nofollow"/>
+<title>Wrexlyn for Investments</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg"/>
+<link rel="icon" type="image/png" href="/icon-512.png"/>
+<link rel="apple-touch-icon" href="/icon-512.png"/>
+<script>
+  // Applied before the stylesheet loads so there's no flash of the wrong theme —
+  // same convention as Wrexlyn's own public/index.html.
+  document.documentElement.setAttribute("data-theme", localStorage.getItem("wrexlyn-investments-theme") || "bloomberg");
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand" id="brand-home">
+    <img class="brand-mark" src="/icon.svg" alt="Wrexlyn" width="28" height="28"/>
+    <span class="brand-name">Wrexlyn<em> Investments</em></span>
+    <span class="brand-sub">PE Intelligence Terminal</span>
+  </div>
+  <nav class="tabs">
+    <button class="tab-btn active" data-view="screening">Screening</button>
+    <button class="tab-btn" data-view="evaluation">Evaluation</button>
+    <button class="tab-btn" data-view="documentation">Documentation</button>
+    <button class="tab-btn" data-view="pipeline">Pipeline</button>
+  </nav>
+  <div class="top-right">
+    <span class="status-chip"><span class="status-dot"></span> LIVE</span>
+    <button class="icon-btn" id="theme-btn" title="Theme">◐</button>
+    <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
+  </div>
+</header>
+
+<!-- SCREENING -->
+<main class="view active" id="view-screening">
+  <div class="panel">
+    <div class="panel-title">Flow 1 · Initial Screening</div>
+    <h2>Screen a company</h2>
+    <p class="sub">Rate a company across 8 PE investment dimensions from publicly available information. Attach a deck to sharpen the read.</p>
+    <div class="field">
+      <label>Company name</label>
+      <input type="text" id="scr-company" placeholder="e.g. CCL Products"/>
+    </div>
+    <div class="upload-zone" id="scr-deck-zone">
+      <input type="file" id="scr-deck-input" accept=".pdf,.pptx,.ppt,.docx,.doc"/>
+      <div class="uz-icon">▤</div>
+      <div class="uz-label">Company Deck (optional)</div>
+      <div class="uz-sub">PDF, PPTX, or DOCX</div>
+      <div class="uz-file" id="scr-deck-file"></div>
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="scr-run-btn">Run Screening</button>
+    </div>
+  </div>
+  <div id="screening-result"></div>
+</main>
+
+<!-- EVALUATION -->
+<main class="view" id="view-evaluation">
+  <div class="panel">
+    <div class="panel-title">Flow 2 · Deal Evaluation</div>
+    <h2>Build the IC Note</h2>
+    <p class="sub">Upload a company deck and financial model. Produces a full Investment Committee note (thesis, financials, risks &amp; mitigants) plus a real downloadable IC Note (.docx) and Financial Model (.xlsx).</p>
+    <div class="field">
+      <label>Company name</label>
+      <input type="text" id="ev-company" placeholder="e.g. Captain Fresh"/>
+    </div>
+    <div class="two-col">
+      <div class="upload-zone" id="ev-deck-zone">
+        <input type="file" id="ev-deck-input" accept=".pdf,.pptx,.ppt,.docx,.doc"/>
+        <div class="uz-icon">▤</div>
+        <div class="uz-label">Company Deck (required)</div>
+        <div class="uz-sub">PDF, PPTX, or DOCX</div>
+        <div class="uz-file" id="ev-deck-file"></div>
+      </div>
+      <div class="upload-zone" id="ev-model-zone">
+        <input type="file" id="ev-model-input" accept=".xlsx,.xls,.csv"/>
+        <div class="uz-icon">▦</div>
+        <div class="uz-label">Financial Model (required)</div>
+        <div class="uz-sub">XLSX, XLS, or CSV</div>
+        <div class="uz-file" id="ev-model-file"></div>
+      </div>
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="ev-run-btn" disabled>Generate IC Note</button>
+      <span class="hint">Both files required.</span>
+    </div>
+  </div>
+  <div id="evaluation-result"></div>
+</main>
+
+<!-- DOCUMENTATION -->
+<main class="view" id="view-documentation">
+  <div class="panel">
+    <div class="panel-title">Flow 3 · Documentation Review</div>
+    <h2>Review company documents</h2>
+    <p class="sub">Upload any company-related document — legal, financial statements, compliance, litigation. Each is reviewed for risk; a real tracked-change redline is attempted on flagged clauses in uploaded .docx files.</p>
+    <div class="field">
+      <label>Company / deal name (optional)</label>
+      <input type="text" id="doc-company" placeholder="Links this review to a pipeline deal"/>
+    </div>
+    <div class="upload-zone" id="doc-files-zone">
+      <input type="file" id="doc-files-input" accept=".pdf,.docx,.doc,.txt" multiple/>
+      <div class="uz-icon">⎙</div>
+      <div class="uz-label">Documents (one or more)</div>
+      <div class="uz-sub">PDF, DOCX, or TXT</div>
+      <div class="uz-file" id="doc-files-list"></div>
+    </div>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="doc-run-btn" disabled>Review Documents</button>
+    </div>
+  </div>
+  <div id="documentation-result"></div>
+</main>
+
+<!-- PIPELINE -->
+<main class="view" id="view-pipeline">
+  <div id="pipeline-content"></div>
+</main>
+
+<!-- Add / edit deal modal -->
+<div class="overlay" id="deal-overlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="deal-modal-title">Deal</h3>
+      <button class="modal-close" id="deal-modal-close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field"><label>Company name</label><input type="text" id="dm-name"/></div>
+      <div class="two-col">
+        <div class="field"><label>Sector</label><input type="text" id="dm-sector"/></div>
+        <div class="field"><label>Deal size</label><input type="text" id="dm-size"/></div>
+      </div>
+      <div class="two-col">
+        <div class="field"><label>Stage</label><select id="dm-stage"></select></div>
+        <div class="field"><label>Status</label><select id="dm-status"></select></div>
+      </div>
+
+      <div class="action-grid" id="dm-actions">
+        <button class="action-btn" data-action="screening"><div class="ai">◧</div><div class="at">Run Screening</div><div class="as">8-dimension rating</div></button>
+        <button class="action-btn" data-action="evaluation"><div class="ai">▤</div><div class="at">Evaluate Deal</div><div class="as">IC Note + model</div></button>
+        <button class="action-btn" data-action="documentation"><div class="ai">⎙</div><div class="at">Review Docs</div><div class="as">Risk + redline</div></button>
+      </div>
+
+      <div class="section-label">Notes</div>
+      <textarea class="notes-box" id="dm-notes" placeholder="Internal notes…"></textarea>
+
+      <div class="section-label">Saved artifacts</div>
+      <div id="dm-artifacts"></div>
+
+      <div style="margin-top:18px;display:flex;justify-content:space-between">
+        <button class="btn btn-danger btn-sm" id="dm-delete">Delete Deal</button>
+        <button class="btn btn-primary btn-sm" id="dm-save">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New deal modal -->
+<div class="overlay" id="new-deal-overlay">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head"><h3>New Deal</h3><button class="modal-close" id="new-deal-close">✕</button></div>
+    <div class="modal-body">
+      <div class="field"><label>Company name</label><input type="text" id="nd-name"/></div>
+      <div class="field"><label>Sector (optional)</label><input type="text" id="nd-sector"/></div>
+      <div class="field"><label>Deal size (optional)</label><input type="text" id="nd-size"/></div>
+      <button class="btn btn-primary" id="nd-create" style="width:100%;justify-content:center">Create Deal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Theme picker modal -->
+<div class="overlay" id="theme-overlay">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head"><h3>Theme</h3><button class="modal-close" id="theme-close">✕</button></div>
+    <div class="modal-body">
+      <div class="theme-list" id="theme-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="overlay" id="settings-overlay">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h3>Settings</h3><button class="modal-close" id="settings-close">✕</button></div>
+    <div class="modal-body">
+      <p class="sub">Works out of the box with Wrexlyn's free no-key default provider. Add your own key for higher limits — stored via OS-native secure storage, shared with the Wrexlyn coding-agent app if installed.</p>
+      <div class="field">
+        <label>Provider</label>
+        <select id="set-provider">
+          <option value="kilo">Kilo (free, no key)</option>
+          <option value="groq">Groq</option>
+          <option value="gemini">Gemini</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="cerebras">Cerebras</option>
+          <option value="mistral">Mistral</option>
+          <option value="custom">Custom / Local Model</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <input type="text" id="set-model" placeholder="model id"/>
+      </div>
+      <div class="field" id="set-baseurl-field" style="display:none">
+        <label>Base URL (custom provider only)</label>
+        <input type="text" id="set-baseurl" placeholder="https://..."/>
+      </div>
+      <div class="field" id="set-key-field">
+        <label>API key</label>
+        <input type="password" id="set-apikey" placeholder="Paste key…"/>
+        <div class="hint" id="set-key-hint"></div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-primary" id="set-save">Save &amp; Apply</button>
+        <button class="btn btn-danger" id="set-clear-key">Clear Key</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

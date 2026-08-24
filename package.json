@@ -1,0 +1,30 @@
+{
+  "name": "wrexlyn-investments",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Wrexlyn for Investments — a commercial private-equity intelligence platform built on Wrexlyn's LLM and document-generation backend.",
+  "author": "Nishant Prabhakar",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "node dist/server/index.js",
+    "dev": "tsx server/index.ts",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "docx": "^9.7.1",
+    "exceljs": "^4.4.0",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.12.1",
+    "pdf-parse": "^2.4.5",
+    "pptxgenjs": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.15.0",
+    "typescript": "5.9.3"
+  }
+}
