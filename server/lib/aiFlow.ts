@@ -5,7 +5,7 @@
  * then extract the outermost {...}), now backed by Wrexlyn's real
  * chatCompletion/provider stack instead of a raw browser fetch.
  */
-import { chatCompletion } from "./llm";
+import { chatCompletion } from "wrexlyn";
 import type { ChatMessage } from "./types";
 import { getConfiguredLlmConfig } from "./settings";
 

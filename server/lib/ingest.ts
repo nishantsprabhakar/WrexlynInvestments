@@ -6,7 +6,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import type { ToolContext } from "./types";
-import { readPdfTool } from "./tools/pdf";
+import { readPdfTool } from "wrexlyn";
 import { readDocxTool } from "./tools/docxRead";
 import { readPptxTool } from "./tools/pptxRead";
 import { readXlsxTool } from "./tools/xlsxRead";

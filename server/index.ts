@@ -11,13 +11,12 @@ import { URL } from "url";
 
 import { resolveInRoot } from "./lib/tools/paths";
 import { workspaceRootDir } from "./lib/workspace";
-import { buildArtifactPreview } from "./lib/artifactPreview";
+import { buildArtifactPreview, loadApiKey, saveApiKey, clearApiKey, maskApiKey, API_KEY_PROVIDERS, type ApiKeyProvider } from "wrexlyn";
 import { runScreeningFlow } from "./flows/screening";
 import { runEvaluationFlow } from "./flows/evaluation";
 import { runDocumentationFlow } from "./flows/documentation";
 import { listDeals, createDeal, updateDeal, deleteDeal, STAGES, STATUSES } from "./pipeline/store";
 import { getSettings, saveSettings } from "./lib/settings";
-import { loadApiKey, saveApiKey, clearApiKey, maskApiKey, API_KEY_PROVIDERS, type ApiKeyProvider } from "./lib/apiKeys";
 
 const PORT = Number(process.env.PORT) || 4500;
 const PUBLIC_DIR = path.join(__dirname, "..", "..", "public");

@@ -1,94 +1,43 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
- * Trimmed re-declaration of coding-agent/src/types.ts's shared LLM/tool
- * contracts (verbatim field-for-field) — the session/task/transaction types
- * from the original file are dropped since nothing here uses them.
+ *
+ * COMPATIBILITY SHIM (Phase 3 migration): re-exports the shared LLM/tool contract from the "wrexlyn"
+ * package instead of hand-declaring a trimmed copy. Kept as a same-path shim — rather than rewriting
+ * every one of the ~16 files that `import ... from "./types"`/`"../types"` — specifically because this
+ * file previously WAS the hand-trimmed copy (94 of Core's 358 lines) that silently dropped
+ * VerificationResult/TransactionRecord/TaskItem/etc.; re-exporting from source is what "restoring the
+ * dropped types" (Phase 1 migration-sequence item 5) means in practice. Nothing here is meant to be
+ * temporary — this is a barrel, not a stopgap — but it is the one file worth flagging so a future
+ * reader isn't surprised to find a "types" file with no interface bodies of its own.
+ *
+ * Verification, TransactionRecord, ActionLogEntry, and TaskItem are re-exported even though nothing in
+ * this codebase consumes them yet — see docs/sdk/COMPATIBILITY.md in the wrexlyn package for why they
+ * matter (Phase 5/6's deterministic-finance validation and audit trail depend on them existing here).
  */
-
-export interface ToolCallRequest {
-  id: string;
-  name: string;
-  arguments: string;
-  extra?: Record<string, unknown>;
-}
-
-export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
-}
-
-export interface ChatCompletionResult {
-  content: string | null;
-  toolCalls: ToolCallRequest[];
-  usage?: TokenUsage;
-}
-
-export type LlmProvider = "kilo" | "groq" | "openrouter" | "gemini" | "cerebras" | "mistral" | "custom";
-
-export interface LlmConfig {
-  provider: LlmProvider;
-  model: string;
-  apiKey?: string;
-  baseUrl?: string;
-  temperature?: number;
-}
-
-export type ChatRole = "system" | "user" | "assistant" | "tool";
-
-export interface ChatMessage {
-  role: ChatRole;
-  content: string | null;
-  tool_call_id?: string;
-  name?: string;
-  tool_calls?: Array<{
-    id: string;
-    type: "function";
-    function: { name: string; arguments: string };
-    extra_content?: Record<string, unknown>;
-  }>;
-}
-
-export interface ToolDefinition {
-  type: "function";
-  function: {
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-  };
-}
-
-export interface ToolQualityGateResult {
-  name: string;
-  ok: boolean;
-  output: string;
-}
-
-export interface ToolExecResult {
-  ok: boolean;
-  output: string;
-  qualityGate?: ToolQualityGateResult;
-}
-
-export type RiskLevel = "low" | "medium" | "high";
-
-export interface ToolSpec {
-  definition: ToolDefinition;
-  mutating: boolean;
-  describe: (args: any) => string;
-  preview?: (args: any, ctx: ToolContext) => Promise<string>;
-  riskOf?: (args: any) => RiskLevel;
-  run: (args: any, ctx: ToolContext) => Promise<ToolExecResult>;
-}
-
-export interface ToolContext {
-  root: string;
-}
-
-export interface RetryNotice {
-  provider: string;
-  status: number;
-  attempt: number;
-  maxRetries: number;
-  waitMs: number;
-}
+export type {
+  ChatRole,
+  ToolCallRequest,
+  TokenUsage,
+  ChatCompletionResult,
+  LlmProvider,
+  LlmConfig,
+  ChatMessage,
+  ToolDefinition,
+  ToolQualityGateResult,
+  ToolExecResult,
+  RiskLevel,
+  ToolSpec,
+  ToolContext,
+  RetryNotice,
+  // Restored — dropped from the pre-migration trimmed copy of this file (see Phase 1 audit).
+  TaskStatus,
+  TaskItem,
+  TransactionOutcome,
+  ActionLogEntry,
+  VerificationCheck,
+  VerificationResult,
+  VerificationSource,
+  VerificationCheckEntry,
+  VerificationContract,
+  TransactionRecord,
+} from "wrexlyn";

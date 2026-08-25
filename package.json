@@ -9,12 +9,14 @@
     "build": "tsc -p .",
     "start": "node dist/server/index.js",
     "dev": "tsx server/index.ts",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "test": "npm run build && node scripts/run-tests.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "wrexlyn": "file:../codingagent",
     "docx": "^9.7.1",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.1",

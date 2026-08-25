@@ -11,7 +11,7 @@ import { runStructuredJson } from "../lib/aiFlow";
 import { ingestUploadedFile, type UploadedFile } from "../lib/ingest";
 import { dealWorkspaceRoot } from "../lib/workspace";
 import { upsertDealByCompanyName, type Deal, type DocumentationRecord } from "../pipeline/store";
-import { redlineDocxTool } from "../lib/tools/redline";
+import { redlineDocxTool } from "wrexlyn";
 
 const DOCUMENTATION_SYSTEM = `You are a senior diligence counsel/analyst reviewing ONE company-related document — this could be a legal contract, term sheet, financial statement, compliance certificate, litigation record, or any other corporate document. Read it closely and flag anything a diligence team needs to know.
 

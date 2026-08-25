@@ -10,7 +10,7 @@ import { runStructuredJson } from "../lib/aiFlow";
 import { ingestUploadedFile, type UploadedFile } from "../lib/ingest";
 import { dealWorkspaceRoot } from "../lib/workspace";
 import { upsertDealByCompanyName, STAGES, type Deal } from "../pipeline/store";
-import { createDocxTool, createXlsxTool } from "../lib/tools/documents";
+import { createDocxTool, createXlsxTool } from "wrexlyn";
 
 const EVALUATION_SYSTEM = `You are a senior private-equity investment associate drafting a full Investment Committee (IC) note from a company deck and financial model. Be decisive, specific, and quantitative — this feeds a real investment decision.
 
