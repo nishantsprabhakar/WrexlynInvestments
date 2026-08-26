@@ -6,6 +6,7 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import { findProjectRoot } from "../lib/projectRoot";
 
 export const STAGES: string[] = [
   "1. Deal Sourcing",
@@ -44,12 +45,16 @@ export interface DocumentationRecord {
   redlinedDocPath?: string;
 }
 
+/** Plain string-literal type, not imported from ../domain/common — that module imports STAGES/STATUSES from here, so the reverse import would cycle. */
+export type LegacyInvestmentStrategy = "pe_buyout" | "growth_equity" | "vc";
+
 export interface Deal {
   id: string;
   companyName: string;
   sector?: string;
   stage: string;
   status: DealStatus;
+  strategy?: LegacyInvestmentStrategy;
   dealSize?: string;
   notes?: string;
   createdAt: number;
@@ -62,7 +67,7 @@ export interface Deal {
 }
 
 function dataPath(): string {
-  return path.join(__dirname, "..", "..", "..", "data", "deals.json");
+  return path.join(findProjectRoot(__dirname), "data", "deals.json");
 }
 
 function readAll(): Deal[] {
@@ -107,6 +112,7 @@ export function createDeal(input: Partial<Deal> & { companyName: string }): Deal
     sector: input.sector,
     stage: input.stage || STAGES[0],
     status: input.status || "Active",
+    strategy: input.strategy,
     dealSize: input.dealSize,
     notes: input.notes,
     createdAt: now,

@@ -1,12 +1,13 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
  * Writes a client-uploaded {name, base64} file into a deal's sandboxed
- * workspace and extracts its text via the matching vendored read tool.
+ * workspace and extracts its text via the matching read tool — read_pdf
+ * from the `wrexlyn` SDK, the other three are Investments-original (Core
+ * has no read-side docx/pptx/xlsx tool).
  */
 import * as fs from "fs";
 import * as path from "path";
-import type { ToolContext } from "./types";
-import { readPdfTool } from "wrexlyn";
+import { readPdfTool, type ToolContext } from "wrexlyn";
 import { readDocxTool } from "./tools/docxRead";
 import { readPptxTool } from "./tools/pptxRead";
 import { readXlsxTool } from "./tools/xlsxRead";

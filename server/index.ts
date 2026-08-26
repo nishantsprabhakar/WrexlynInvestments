@@ -9,17 +9,32 @@ import * as fs from "fs";
 import * as path from "path";
 import { URL } from "url";
 
-import { resolveInRoot } from "./lib/tools/paths";
+import { resolveInRoot, buildArtifactPreview, loadApiKey, saveApiKey, clearApiKey, maskApiKey, API_KEY_PROVIDERS, type ApiKeyProvider } from "wrexlyn";
 import { workspaceRootDir } from "./lib/workspace";
-import { buildArtifactPreview, loadApiKey, saveApiKey, clearApiKey, maskApiKey, API_KEY_PROVIDERS, type ApiKeyProvider } from "wrexlyn";
 import { runScreeningFlow } from "./flows/screening";
 import { runEvaluationFlow } from "./flows/evaluation";
 import { runDocumentationFlow } from "./flows/documentation";
-import { listDeals, createDeal, updateDeal, deleteDeal, STAGES, STATUSES } from "./pipeline/store";
+import { listDeals, createDeal, updateDeal, deleteDeal, getDeal, STAGES, STATUSES } from "./pipeline/store";
 import { getSettings, saveSettings } from "./lib/settings";
+import { findProjectRoot } from "./lib/projectRoot";
+import { listAuditEntries } from "./domain/audit/auditLog";
+import { syncDomainDeal } from "./domain/sync";
+import {
+  icDecisions,
+  capTables,
+  companies as domainCompanies,
+  deals as domainDeals,
+  portfolioInvestments,
+  portfolioKPIs,
+  followOnDecisions,
+  exitScenarios,
+  realisedProceeds,
+} from "./domain/repositories";
+import { capTableSumCheck, capTableDilution } from "./domain/finance/calculations";
+import { findOrCreateFundForStrategy, upsertPortfolioInvestment, buildExitScenarioInput, buildRealisedProceedsInput } from "./domain/portfolioActions";
 
 const PORT = Number(process.env.PORT) || 4500;
-const PUBLIC_DIR = path.join(__dirname, "..", "..", "public");
+const PUBLIC_DIR = path.join(findProjectRoot(__dirname), "public");
 const MAX_BODY_BYTES = 60 * 1024 * 1024; // generous cap for base64-encoded decks/models/data-room PDFs
 
 const MODEL_CATALOG: Record<string, string[]> = {
@@ -199,6 +214,238 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       }
       deleteDeal(id);
       sendJson(res, 200, { ok: true });
+      return true;
+    }
+
+    if (pathname === "/api/audit" && method === "GET") {
+      const dealId = url.searchParams.get("dealId") || undefined;
+      sendJson(res, 200, { entries: listAuditEntries({ dealId }) });
+      return true;
+    }
+
+    if (pathname === "/api/ic-decisions" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      sendJson(res, 200, { decisions: icDecisions.list().filter((d) => d.dealId === domainDealId) });
+      return true;
+    }
+
+    if (pathname === "/api/ic-decisions" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const decidedBy = Array.isArray(body.decidedBy) ? body.decidedBy.map(String).map((s: string) => s.trim()).filter(Boolean) : [];
+      if (!decidedBy.length) {
+        sendJson(res, 400, { error: "decidedBy must list at least one human decision-maker — an IC decision can never be attributed to AI" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const decision = icDecisions.create({
+        dealId: domainDealId,
+        decision: body.decision,
+        decidedBy,
+        decidedAt: Date.now(),
+        rationale: body.rationale || undefined,
+      });
+      sendJson(res, 200, { decision });
+      return true;
+    }
+
+    if (pathname === "/api/cap-tables" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      sendJson(res, 200, { capTables: capTables.list().filter((c) => c.dealId === domainDealId) });
+      return true;
+    }
+
+    if (pathname === "/api/cap-tables" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const rows = Array.isArray(body.rows) ? body.rows : [];
+      const sumCheck = capTableSumCheck(rows);
+      if (!sumCheck.valid) {
+        sendJson(res, 400, { error: `cap table rows must sum to 100% ownership (got ${sumCheck.totalPct.toFixed(2)}%)` });
+        return true;
+      }
+      const { companyId, dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const capTable = capTables.create({
+        companyId,
+        dealId: domainDealId,
+        asOfDate: body.asOfDate || new Date().toISOString().slice(0, 10),
+        rows,
+      });
+      sendJson(res, 200, { capTable });
+      return true;
+    }
+
+    if (pathname === "/api/cap-tables/dilution" && method === "POST") {
+      const body = await readJsonBody(req);
+      const result = capTableDilution({
+        existingRows: Array.isArray(body.existingRows) ? body.existingRows : [],
+        preMoneyM: Number(body.preMoneyM) || 0,
+        newInvestmentM: Number(body.newInvestmentM) || 0,
+      });
+      sendJson(res, 200, result);
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/investments" && method === "GET") {
+      const investments = portfolioInvestments.list().map((inv) => ({
+        ...inv,
+        companyName: domainCompanies.get(inv.companyId)?.legalName,
+        strategy: domainDeals.get(inv.dealId)?.strategy,
+      }));
+      sendJson(res, 200, { investments });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/investments" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { companyId, dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const domainDeal = domainDeals.get(domainDealId)!;
+      const fundId = findOrCreateFundForStrategy(domainDeal.strategy);
+      const investment = upsertPortfolioInvestment({
+        dealId: domainDealId,
+        companyId,
+        fundId,
+        investedM: Number(body.investedM) || 0,
+        ownershipPct: Number(body.ownershipPct) || 0,
+        investedAt: body.investedAt ? new Date(body.investedAt).getTime() : Date.now(),
+      });
+      updateDeal(legacyDeal.id, { status: "Invested" });
+      sendJson(res, 200, { investment });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/detail" && method === "GET") {
+      const id = url.searchParams.get("portfolioInvestmentId");
+      if (!id) {
+        sendJson(res, 400, { error: "missing portfolioInvestmentId" });
+        return true;
+      }
+      const investment = portfolioInvestments.get(id);
+      if (!investment) {
+        sendJson(res, 404, { error: "portfolio investment not found" });
+        return true;
+      }
+      sendJson(res, 200, {
+        investment,
+        kpis: portfolioKPIs.list().filter((k) => k.portfolioInvestmentId === id),
+        followOnDecisions: followOnDecisions.list().filter((f) => f.portfolioInvestmentId === id),
+        exitScenarios: exitScenarios.list().filter((e) => e.portfolioInvestmentId === id),
+        realisedProceeds: realisedProceeds.list().filter((r) => r.portfolioInvestmentId === id),
+      });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/kpis" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!portfolioInvestments.get(String(body.portfolioInvestmentId || ""))) {
+        sendJson(res, 404, { error: "portfolio investment not found" });
+        return true;
+      }
+      const kpi = portfolioKPIs.create({
+        portfolioInvestmentId: body.portfolioInvestmentId,
+        period: body.period,
+        kpi: body.kpi,
+        value: Number(body.value),
+        targetValue: body.targetValue != null ? Number(body.targetValue) : undefined,
+      });
+      sendJson(res, 200, { kpi });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/follow-on-decisions" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!portfolioInvestments.get(String(body.portfolioInvestmentId || ""))) {
+        sendJson(res, 404, { error: "portfolio investment not found" });
+        return true;
+      }
+      const decidedBy = Array.isArray(body.decidedBy) ? body.decidedBy.map(String).map((s: string) => s.trim()).filter(Boolean) : [];
+      if (!decidedBy.length) {
+        sendJson(res, 400, { error: "decidedBy must list at least one human decision-maker — a follow-on commitment can never be attributed to AI" });
+        return true;
+      }
+      const decision = followOnDecisions.create({
+        portfolioInvestmentId: body.portfolioInvestmentId,
+        roundName: body.roundName || undefined,
+        decision: body.decision,
+        decidedBy,
+        decidedAt: Date.now(),
+        amountM: body.amountM != null ? Number(body.amountM) : undefined,
+        rationale: body.rationale || undefined,
+      });
+      sendJson(res, 200, { decision });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/exit-scenarios" && method === "POST") {
+      const body = await readJsonBody(req);
+      const investment = portfolioInvestments.get(String(body.portfolioInvestmentId || ""));
+      if (!investment) {
+        sendJson(res, 404, { error: "portfolio investment not found" });
+        return true;
+      }
+      const scenario = exitScenarios.create(
+        buildExitScenarioInput(investment.investedM, {
+          portfolioInvestmentId: body.portfolioInvestmentId,
+          scenario: body.scenario,
+          exitRoute: body.exitRoute,
+          exitYear: body.exitYear != null ? Number(body.exitYear) : undefined,
+          expectedProceedsM: body.expectedProceedsM != null ? Number(body.expectedProceedsM) : undefined,
+        })
+      );
+      sendJson(res, 200, { scenario });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/realised-proceeds" && method === "POST") {
+      const body = await readJsonBody(req);
+      const investment = portfolioInvestments.get(String(body.portfolioInvestmentId || ""));
+      if (!investment) {
+        sendJson(res, 404, { error: "portfolio investment not found" });
+        return true;
+      }
+      const proceeds = realisedProceeds.create(
+        buildRealisedProceedsInput(investment, {
+          exitDate: body.exitDate,
+          exitRoute: body.exitRoute,
+          grossProceedsM: Number(body.grossProceedsM) || 0,
+          netProceedsM: body.netProceedsM != null ? Number(body.netProceedsM) : undefined,
+        })
+      );
+      portfolioInvestments.update(investment.id, { status: "exited" });
+      sendJson(res, 200, { proceeds });
       return true;
     }
 

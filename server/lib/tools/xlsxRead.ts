@@ -7,8 +7,7 @@
  */
 import * as fs from "fs";
 import ExcelJS from "exceljs";
-import type { ToolSpec } from "../types";
-import { resolveInRoot } from "./paths";
+import { resolveInRoot, type ToolSpec } from "wrexlyn";
 
 const MAX_CHARS_PER_SHEET = 6000;
 const MAX_ROWS_PER_SHEET = 200;

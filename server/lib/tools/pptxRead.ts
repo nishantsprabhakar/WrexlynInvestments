@@ -7,8 +7,7 @@
  */
 import * as fs from "fs";
 import JSZip from "jszip";
-import type { ToolSpec } from "../types";
-import { resolveInRoot } from "./paths";
+import { resolveInRoot, type ToolSpec } from "wrexlyn";
 
 const MAX_OUTPUT_CHARS = 100_000;
 

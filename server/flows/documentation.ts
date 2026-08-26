@@ -12,6 +12,12 @@ import { ingestUploadedFile, type UploadedFile } from "../lib/ingest";
 import { dealWorkspaceRoot } from "../lib/workspace";
 import { upsertDealByCompanyName, type Deal, type DocumentationRecord } from "../pipeline/store";
 import { redlineDocxTool } from "wrexlyn";
+import { recordAuditEntry } from "../domain/audit/auditLog";
+import { syncDomainDeal } from "../domain/sync";
+import { risksAndMitigants, investmentArtifacts } from "../domain/repositories";
+import { buildRiskAndMitigantInputs, buildInvestmentArtifactInput } from "./documentation.persist";
+import { DocumentationLlmOutputSchema } from "./schemas";
+import { CLASSIFICATION_RULES } from "./promptFragments";
 
 const DOCUMENTATION_SYSTEM = `You are a senior diligence counsel/analyst reviewing ONE company-related document — this could be a legal contract, term sheet, financial statement, compliance certificate, litigation record, or any other corporate document. Read it closely and flag anything a diligence team needs to know.
 
@@ -26,7 +32,8 @@ Return ONLY valid JSON in exactly this shape:
       "rationale": "why this matters for the investment decision",
       "recommendedAction": "specific next step (renegotiate clause, request additional disclosure, escalate to legal, etc.)",
       "quotedText": "the EXACT verbatim text from the document this flag refers to, or empty string if not tied to a specific quotable passage",
-      "suggestedReplacementText": "proposed replacement language if quotedText is set and a redline makes sense, else empty string"
+      "suggestedReplacementText": "proposed replacement language if quotedText is set and a redline makes sense, else empty string",
+      "classification": "sourced_fact"
     }
   ],
   "complianceGaps": ["missing certifications, filings, or disclosures expected for a document of this type"],
@@ -36,6 +43,7 @@ Return ONLY valid JSON in exactly this shape:
 Rules:
 - quotedText must be copied character-for-character from the source text when set — this is used to attempt an automated redline, so approximate quotes are worse than leaving it empty.
 - Be specific and skeptical — do not pad with generic boilerplate risk language.
+- Every riskFlags entry must carry a "classification". ${CLASSIFICATION_RULES}
 Return ONLY the JSON object, no markdown fences, no commentary.`;
 
 export interface DocumentationInput {
@@ -49,6 +57,7 @@ export async function runDocumentationFlow(input: DocumentationInput) {
   const dealName = (input.companyName || "").trim() || "Unfiled Documentation Review";
   const deal = upsertDealByCompanyName(dealName, {});
   const root = dealWorkspaceRoot(deal.id);
+  const { dealId: domainDealId } = syncDomainDeal(deal);
 
   const results: any[] = [];
   const docRecords: DocumentationRecord[] = [];
@@ -61,7 +70,8 @@ export async function runDocumentationFlow(input: DocumentationInput) {
     }
 
     const userContent = `DOCUMENT: ${file.name}\n\nEXTRACTED TEXT:\n${ingested.text.slice(0, 20000)}`;
-    const review = await runStructuredJson(DOCUMENTATION_SYSTEM, userContent);
+    const raw = await runStructuredJson(DOCUMENTATION_SYSTEM, userContent);
+    const review = DocumentationLlmOutputSchema.parse(raw);
 
     let redlinedDocPath: string | undefined;
     const ext = path.extname(file.name).toLowerCase();
@@ -86,13 +96,30 @@ export async function runDocumentationFlow(input: DocumentationInput) {
     }
 
     results.push({ fileName: file.name, review, redlinedDocPath });
+    const overallRiskGrade = review.riskFlags?.some((f: any) => f.severity === "high")
+      ? "High Risk"
+      : review.riskFlags?.length
+        ? "Medium Risk"
+        : "Low Risk";
     docRecords.push({
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       fileName: file.name,
-      overallRiskGrade: review.riskFlags?.some((f: any) => f.severity === "high") ? "High Risk" : review.riskFlags?.length ? "Medium Risk" : "Low Risk",
+      overallRiskGrade,
       ranAt: Date.now(),
       redlinedDocPath,
     });
+
+    recordAuditEntry({
+      dealId: deal.id,
+      companyName: dealName,
+      flow: "documentation",
+      inputSummary: `document: ${file.name}`,
+      outputSummary: { documentType: review.documentType, riskFlagCount: review.riskFlags?.length ?? 0, overallRiskGrade },
+      validationOk: true,
+    });
+
+    for (const risk of buildRiskAndMitigantInputs(review, domainDealId)) risksAndMitigants.create(risk);
+    if (redlinedDocPath) investmentArtifacts.create(buildInvestmentArtifactInput(domainDealId, redlinedDocPath));
   }
 
   const existingDocs = deal.documentation || [];

@@ -27,5 +27,9 @@ if (!testFiles.length) {
   process.exit(1);
 }
 
-const result = spawnSync(process.execPath, ["--test", "--test-force-exit", ...testFiles], { stdio: "inherit" });
+// --test-concurrency=1: several test files exercise the real domain JSON stores
+// (server/domain/*.json) directly — running files concurrently races on those shared
+// files and produces flaky miscounts. Serializing files is the fix, not per-file isolation,
+// since the whole point of several of these tests is proving the real stores behave correctly.
+const result = spawnSync(process.execPath, ["--test", "--test-force-exit", "--test-concurrency=1", ...testFiles], { stdio: "inherit" });
 process.exit(result.status ?? 1);

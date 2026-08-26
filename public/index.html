@@ -31,6 +31,9 @@
     <button class="tab-btn" data-view="evaluation">Evaluation</button>
     <button class="tab-btn" data-view="documentation">Documentation</button>
     <button class="tab-btn" data-view="pipeline">Pipeline</button>
+    <button class="tab-btn" data-view="ic-decisions">IC Decisions</button>
+    <button class="tab-btn" data-view="captable-vc">Cap Table / VC</button>
+    <button class="tab-btn" data-view="portfolio">Portfolio</button>
   </nav>
   <div class="top-right">
     <span class="status-chip"><span class="status-dot"></span> LIVE</span>
@@ -126,6 +129,86 @@
   <div id="pipeline-content"></div>
 </main>
 
+<!-- IC DECISIONS -->
+<main class="view" id="view-ic-decisions">
+  <div class="panel">
+    <div class="panel-title">Investment Committee · Record a Decision</div>
+    <h2>Record an IC decision</h2>
+    <p class="sub">Core Principle 7 — Wrexlyn drafts and analyzes, but never casts an IC vote. Every decision must name at least one human decision-maker.</p>
+    <div class="field"><label>Deal</label><select id="ic-deal"></select></div>
+    <div class="two-col">
+      <div class="field">
+        <label>Decision</label>
+        <select id="ic-decision">
+          <option value="approve">Approve</option>
+          <option value="approve_with_conditions">Approve with Conditions</option>
+          <option value="reject">Reject</option>
+          <option value="defer">Defer</option>
+        </select>
+      </div>
+      <div class="field"><label>Decided by (comma-separated names)</label><input type="text" id="ic-decided-by" placeholder="e.g. Priya Shah, Rohan Mehta"/></div>
+    </div>
+    <div class="field"><label>Rationale (optional)</label><textarea class="notes-box" id="ic-rationale" placeholder="Why this decision…"></textarea></div>
+    <div style="margin-top:16px"><button class="btn btn-primary" id="ic-record-btn">Record Decision</button></div>
+  </div>
+  <div id="ic-decisions-result"></div>
+</main>
+
+<!-- CAP TABLE / VC -->
+<main class="view" id="view-captable-vc">
+  <div class="panel">
+    <div class="panel-title">VC · Cap Table</div>
+    <h2>Cap table</h2>
+    <p class="sub">Save a company's current cap table (rows must sum to 100% ownership), or model a new priced round below before committing to it.</p>
+    <div class="two-col">
+      <div class="field"><label>Deal</label><select id="ct-deal"></select></div>
+      <div class="field"><label>As of date</label><input type="date" id="ct-asof"/></div>
+    </div>
+    <div id="ct-rows"></div>
+    <button class="btn btn-sm" id="ct-add-row" style="margin-top:8px" type="button">+ Add Row</button>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="ct-save-btn">Save Cap Table</button>
+      <span class="hint" id="ct-sum-hint"></span>
+    </div>
+  </div>
+  <div id="captable-result"></div>
+
+  <div class="panel" style="margin-top:20px">
+    <div class="panel-title">Model a New Round</div>
+    <div class="two-col">
+      <div class="field"><label>Pre-money valuation ($M)</label><input type="number" id="dil-premoney" step="0.1"/></div>
+      <div class="field"><label>New investment ($M)</label><input type="number" id="dil-investment" step="0.1"/></div>
+    </div>
+    <button class="btn btn-primary btn-sm" id="dil-run-btn" type="button">Model Dilution</button>
+    <div id="dilution-result" style="margin-top:12px"></div>
+  </div>
+</main>
+
+<!-- PORTFOLIO -->
+<main class="view" id="view-portfolio">
+  <div class="panel">
+    <div class="panel-title">Post-Investment · Add to Portfolio</div>
+    <h2>Portfolio</h2>
+    <p class="sub">Record what actually happens after money goes in — KPIs, follow-on decisions, exit scenarios, and realized proceeds. Marking a deal invested here also flips its pipeline status.</p>
+    <div class="two-col">
+      <div class="field"><label>Deal</label><select id="pf-deal"></select></div>
+      <div class="field"><label>Invested date</label><input type="date" id="pf-invested-at"/></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Invested ($M)</label><input type="number" id="pf-invested-m" step="0.1"/></div>
+      <div class="field"><label>Ownership %</label><input type="number" id="pf-ownership-pct" step="0.01"/></div>
+    </div>
+    <button class="btn btn-primary" id="pf-add-btn">Add to Portfolio</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Portfolio Companies</div>
+    <div style="overflow-x:auto"><table class="grid" id="pf-table"><thead><tr><th>Company</th><th>Strategy</th><th class="num">Invested ($M)</th><th class="num">Ownership %</th><th>Status</th></tr></thead><tbody id="pf-table-body"></tbody></table></div>
+  </div>
+
+  <div id="pf-detail"></div>
+</main>
+
 <!-- Add / edit deal modal -->
 <div class="overlay" id="deal-overlay">
   <div class="modal">
@@ -142,6 +225,13 @@
       <div class="two-col">
         <div class="field"><label>Stage</label><select id="dm-stage"></select></div>
         <div class="field"><label>Status</label><select id="dm-status"></select></div>
+      </div>
+      <div class="field"><label>Strategy</label>
+        <select id="dm-strategy">
+          <option value="growth_equity">Growth Equity</option>
+          <option value="pe_buyout">PE Buyout</option>
+          <option value="vc">VC</option>
+        </select>
       </div>
 
       <div class="action-grid" id="dm-actions">
@@ -172,6 +262,13 @@
       <div class="field"><label>Company name</label><input type="text" id="nd-name"/></div>
       <div class="field"><label>Sector (optional)</label><input type="text" id="nd-sector"/></div>
       <div class="field"><label>Deal size (optional)</label><input type="text" id="nd-size"/></div>
+      <div class="field"><label>Strategy</label>
+        <select id="nd-strategy">
+          <option value="growth_equity">Growth Equity</option>
+          <option value="pe_buyout">PE Buyout</option>
+          <option value="vc">VC</option>
+        </select>
+      </div>
       <button class="btn btn-primary" id="nd-create" style="width:100%;justify-content:center">Create Deal</button>
     </div>
   </div>

@@ -11,6 +11,20 @@ import { ingestUploadedFile, type UploadedFile } from "../lib/ingest";
 import { dealWorkspaceRoot } from "../lib/workspace";
 import { upsertDealByCompanyName, STAGES, type Deal } from "../pipeline/store";
 import { createDocxTool, createXlsxTool } from "wrexlyn";
+import { EvaluationLlmOutputSchema } from "./schemas";
+import { applyDeterministicFinancials, applyDeterministicReturns } from "./evaluation.calc";
+import { recordAuditEntry } from "../domain/audit/auditLog";
+import { syncDomainDeal } from "../domain/sync";
+import { financialPeriods, financialMetrics, capitalStructures, returnsCases, investmentArtifacts, risksAndMitigants } from "../domain/repositories";
+import {
+  buildEntryMetricInputs,
+  buildProjectionYearInputs,
+  buildCapitalStructureInput,
+  buildReturnsCaseInputs,
+  buildInvestmentArtifactInputs,
+  buildRiskAndMitigantInputs,
+} from "./evaluation.persist";
+import { CLASSIFICATION_RULES } from "./promptFragments";
 
 const EVALUATION_SYSTEM = `You are a senior private-equity investment associate drafting a full Investment Committee (IC) note from a company deck and financial model. Be decisive, specific, and quantitative — this feeds a real investment decision.
 
@@ -21,24 +35,24 @@ Return ONLY valid JSON in exactly this shape:
   "investmentThesis": "the core thesis for why this is (or isn't) an attractive investment, 150+ words",
   "businessOverview": "products, business model, go-to-market, moat, 150+ words",
   "financialAnalysis": {
-    "revenueCr": 0, "ebitdaCr": 0, "ebitdaMarginPct": 0, "patCr": 0, "debtCr": 0,
+    "revenueCr": 0, "ebitdaCr": 0, "patCr": 0, "debtCr": 0,
     "commentary": "trend analysis, quality of earnings, working capital, 100+ words"
   },
   "valuation": { "askCr": 0, "impliedMultiple": "e.g. 12x EV/EBITDA", "commentary": "valuation view vs comparable transactions, 80+ words" },
   "risksAndMitigants": [
-    {"risk": "specific risk", "severity": "high|medium|low", "mitigant": "specific, concrete mitigant — never 'monitor closely' alone"}
+    {"risk": "specific risk", "severity": "high|medium|low", "mitigant": "specific, concrete mitigant — never 'monitor closely' alone", "classification": "analyst_assumption"}
   ],
   "recommendation": "Advance|Hold|Pass",
   "proposedTerms": "proposed structure/terms if recommendation is Advance, else empty string",
   "financialModel": {
     "historicalYears": [{"year": "FY22", "revenueCr": 0, "ebitdaCr": 0}],
     "projectedYears": [
-      {"year": "FY24", "revenueCr": 0, "ebitdaCr": 0, "growthPct": 0}
+      {"year": "FY24", "revenueCr": 0, "ebitdaCr": 0}
     ],
     "returnsScenarios": [
-      {"case": "Bear", "exitYear": 5, "irr": "12%", "moic": "1.8x"},
-      {"case": "Base", "exitYear": 5, "irr": "26%", "moic": "3.2x"},
-      {"case": "Bull", "exitYear": 5, "irr": "40%", "moic": "5.1x"}
+      {"case": "Bear", "exitYear": 5, "exitMultiple": 8.0},
+      {"case": "Base", "exitYear": 5, "exitMultiple": 10.0},
+      {"case": "Bull", "exitYear": 5, "exitMultiple": 13.0}
     ]
   }
 }
@@ -48,6 +62,10 @@ Rules:
 - projectedYears must cover exactly 5 forward years.
 - historicalYears covers up to 3 past years if the source data supports it, else an empty array.
 - Base every number on the deck/model text provided; where data is missing, use clearly-labeled conservative estimates rather than omitting the field.
+- exitMultiple is your assumed exit EV/EBITDA multiple for that scenario (a number, e.g. 10.0, not a string) — do not state IRR or MOIC yourself, the platform computes both deterministically from this assumption plus the projected exit-year EBITDA and the investment ask.
+- exitYear must be an integer 1-5, matching one of the 5 projectedYears entries.
+- Do not include ebitdaMarginPct or growthPct fields — the platform computes both deterministically from your revenue/EBITDA figures.
+- Every risksAndMitigants entry must carry a "classification". ${CLASSIFICATION_RULES}
 Return ONLY the JSON object, no markdown fences, no commentary.`;
 
 function icNoteBlocks(note: any): any[] {
@@ -163,7 +181,9 @@ export async function runEvaluationFlow(input: EvaluationInput) {
     `\n=== FINANCIAL MODEL (extracted data) ===\n${(modelIngest.ok ? modelIngest.text : "").slice(0, 12000)}\n=== END FINANCIAL MODEL ===`,
   ].join("\n");
 
-  const note = await runStructuredJson(EVALUATION_SYSTEM, userContent);
+  const raw = await runStructuredJson(EVALUATION_SYSTEM, userContent);
+  const validated = EvaluationLlmOutputSchema.parse(raw);
+  const note = applyDeterministicReturns(applyDeterministicFinancials(validated));
 
   const docxResult = await createDocxTool.run(
     { path: "IC_Note.docx", title: `${companyName} — Investment Committee Note`, blocks: icNoteBlocks(note) },
@@ -188,6 +208,47 @@ export async function runEvaluationFlow(input: EvaluationInput) {
       ranAt: Date.now(),
     },
   } as Partial<Deal>);
+
+  recordAuditEntry({
+    dealId: updated.id,
+    companyName,
+    flow: "evaluation",
+    inputSummary: `deck: ${input.deckFile.name}, model: ${input.modelFile.name}`,
+    outputSummary: {
+      ebitdaMarginPct: note.financialAnalysis?.ebitdaMarginPct,
+      recommendation: note.recommendation,
+      returnsScenarios: note.financialModel?.returnsScenarios,
+    },
+    validationOk: true,
+  });
+
+  const { companyId, dealId: domainDealId } = syncDomainDeal(updated);
+
+  const entryPeriod = financialPeriods.create({
+    companyId,
+    dealId: domainDealId,
+    label: "Entry (evaluation flow)",
+    periodType: "actual",
+    currency: "INR",
+  });
+  for (const metric of buildEntryMetricInputs(note)) {
+    financialMetrics.create({ financialPeriodId: entryPeriod.id, ...metric });
+  }
+  for (const year of buildProjectionYearInputs(note)) {
+    const period = financialPeriods.create({ companyId, dealId: domainDealId, label: year.label, periodType: year.periodType, currency: "INR" });
+    for (const metric of year.metrics) financialMetrics.create({ financialPeriodId: period.id, ...metric });
+  }
+
+  capitalStructures.create(buildCapitalStructureInput(note, domainDealId));
+  for (const returnsCase of buildReturnsCaseInputs(note, domainDealId)) returnsCases.create(returnsCase);
+  for (const risk of buildRiskAndMitigantInputs(note, domainDealId)) risksAndMitigants.create(risk);
+  for (const artifact of buildInvestmentArtifactInputs(
+    domainDealId,
+    docxResult.ok ? `${deal.id}/IC_Note.docx` : undefined,
+    xlsxResult.ok ? `${deal.id}/Financial_Model.xlsx` : undefined
+  )) {
+    investmentArtifacts.create(artifact);
+  }
 
   return {
     deal: updated,

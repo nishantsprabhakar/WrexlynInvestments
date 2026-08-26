@@ -2,11 +2,11 @@
  * Wrexlyn for Investments — built on Wrexlyn's backend.
  * Shared "one structured JSON call" helper used by every flow — mirrors
  * Praevix's proven callAIJson pattern (direct-parse, then strip fences,
- * then extract the outermost {...}), now backed by Wrexlyn's real
- * chatCompletion/provider stack instead of a raw browser fetch.
+ * then extract the outermost {...}), backed by the real `wrexlyn` SDK's
+ * chatCompletion/provider stack (Phase 3 migration — no longer a vendored
+ * copy) instead of a raw browser fetch.
  */
-import { chatCompletion } from "wrexlyn";
-import type { ChatMessage } from "./types";
+import { chatCompletion, type ChatMessage } from "wrexlyn";
 import { getConfiguredLlmConfig } from "./settings";
 
 export function parseJsonLoose(raw: string): any {

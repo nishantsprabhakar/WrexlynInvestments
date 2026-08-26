@@ -7,8 +7,8 @@
  */
 import * as fs from "fs";
 import * as path from "path";
-import type { LlmConfig, LlmProvider } from "./types";
-import { loadApiKey, type ApiKeyProvider } from "wrexlyn";
+import { loadApiKey, type LlmConfig, type LlmProvider, type ApiKeyProvider } from "wrexlyn";
+import { findProjectRoot } from "./projectRoot";
 
 export interface AppSettings {
   provider: LlmProvider;
@@ -26,7 +26,7 @@ export function _setSettingsPathForTesting(dir: string | null): void {
 
 function settingsPath(): string {
   if (testDataDir) return path.join(testDataDir, "settings.json");
-  return path.join(__dirname, "..", "..", "..", "data", "settings.json");
+  return path.join(findProjectRoot(__dirname), "data", "settings.json");
 }
 
 export function getSettings(): AppSettings {

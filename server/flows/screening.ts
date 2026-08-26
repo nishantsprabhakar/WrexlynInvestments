@@ -8,6 +8,13 @@ import { runStructuredJson } from "../lib/aiFlow";
 import { ingestUploadedFile, type UploadedFile } from "../lib/ingest";
 import { dealWorkspaceRoot } from "../lib/workspace";
 import { upsertDealByCompanyName, STAGES, type Deal } from "../pipeline/store";
+import { ScreeningLlmOutputSchema } from "./schemas";
+import { applyDeterministicScreening } from "./screening.calc";
+import { recordAuditEntry } from "../domain/audit/auditLog";
+import { syncDomainDeal } from "../domain/sync";
+import { screeningAssessments } from "../domain/repositories";
+import { buildScreeningAssessmentRecord } from "./screening.persist";
+import { CLASSIFICATION_RULES } from "./promptFragments";
 
 const SCREENING_SYSTEM = `You are a senior private-equity screening analyst producing an institutional-grade initial screen. You work ONLY from publicly available information (and any deck text supplied) — never fabricate financials with false precision; use ranges and say "estimated" where appropriate.
 
@@ -18,16 +25,15 @@ Return ONLY valid JSON in exactly this shape:
   "companyName": "string",
   "sector": "string",
   "hq": "string",
-  "overallRating": 0-100,
-  "grade": "A+|A|A-|B+|B|B-|C+|C|C-|D|F",
   "dimensions": [{"name": "Market Opportunity", "score": 0.0, "rationale": "..."}],
-  "keyFacts": ["specific, sourced-feeling facts about the business, financials, funding history"],
-  "redFlags": ["specific concerns a diligence team should chase"],
+  "keyFacts": [{"text": "specific, sourced-feeling fact about the business, financials, funding history", "classification": "sourced_fact"}],
+  "redFlags": [{"text": "specific concern a diligence team should chase", "classification": "analyst_assumption"}],
   "recommendation": "Advance to Preliminary DD|Hold — needs more information|Pass"
 }
 
-Grade scale: 88+ = A+/A, 74-87 = B range, 58-73 = C range, 40-57 = D, below 40 = F.
-overallRating is the weighted average of the 8 dimension scores (equal weight, ×10, rounded).
+Do not compute an overall rating or letter grade yourself — the platform derives both deterministically from your 8 dimension scores (equal-weight average ×10, rounded).
+
+Every keyFact and redFlag must carry a "classification". ${CLASSIFICATION_RULES}
 Return ONLY the JSON object, no markdown fences, no commentary.`;
 
 export interface ScreeningInput {
@@ -52,7 +58,8 @@ export async function runScreeningFlow(input: ScreeningInput) {
     ? `Company to screen: ${companyName}\n\n=== UPLOADED DECK (extracted text) ===\n${deckText.slice(0, 15000)}\n=== END DECK ===`
     : `Company to screen: ${companyName}\n\nNo deck was provided — screen based on publicly available information.`;
 
-  const report = await runStructuredJson(SCREENING_SYSTEM, userContent);
+  const raw = await runStructuredJson(SCREENING_SYSTEM, userContent);
+  const report = applyDeterministicScreening(ScreeningLlmOutputSchema.parse(raw));
 
   const updated = upsertDealByCompanyName(companyName, {
     sector: report.sector || deal.sector,
@@ -64,6 +71,18 @@ export async function runScreeningFlow(input: ScreeningInput) {
       ranAt: Date.now(),
     },
   } as Partial<Deal>);
+
+  recordAuditEntry({
+    dealId: updated.id,
+    companyName,
+    flow: "screening",
+    inputSummary: input.deckFile ? `deck: ${input.deckFile.name}` : "no deck provided",
+    outputSummary: { overallRating: report.overallRating, grade: report.grade, recommendation: report.recommendation },
+    validationOk: true,
+  });
+
+  const { dealId: domainDealId } = syncDomainDeal(updated);
+  screeningAssessments.create(buildScreeningAssessmentRecord(report, domainDealId));
 
   return { deal: updated, report };
 }

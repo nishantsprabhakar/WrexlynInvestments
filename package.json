@@ -10,19 +10,18 @@
     "start": "node dist/server/index.js",
     "dev": "tsx server/index.ts",
     "typecheck": "tsc -p . --noEmit",
-    "test": "npm run build && node scripts/run-tests.js"
+    "test": "npm run build && node scripts/run-tests.js",
+    "migrate:legacy": "tsx server/domain/migrateLegacy.ts"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "wrexlyn": "file:../codingagent",
-    "docx": "^9.7.1",
+    "wrexlyn": "file:../coding-agent",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.1",
-    "pdf-parse": "^2.4.5",
-    "pptxgenjs": "^4.0.1"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

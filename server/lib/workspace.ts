@@ -6,8 +6,9 @@
  */
 import * as fs from "fs";
 import * as path from "path";
+import { findProjectRoot } from "./projectRoot";
 
-const WORKSPACE_ROOT = path.join(__dirname, "..", "..", "..", "workspace");
+const WORKSPACE_ROOT = path.join(findProjectRoot(__dirname), "workspace");
 
 export function dealWorkspaceRoot(dealId: string): string {
   const root = path.join(WORKSPACE_ROOT, dealId);
