@@ -11,6 +11,7 @@ import * as path from "path";
 
 import { CompanySchema } from "../domain/entities/pipeline";
 import { createEntityStore, domainDataDir } from "../domain/store";
+import { findProjectRoot } from "../lib/projectRoot";
 import { z } from "zod";
 import {
   deals,
@@ -255,7 +256,11 @@ test("VC fixture: Company -> Fund(vc) -> Deal -> CapTable -> FollowOnDecision ->
 // 6. Architectural — nothing in domain/ is imported by (or imports from) Core
 // ---------------------------------------------------------------------------
 test("architectural: domain layer has no import of the wrexlyn Core package name outside allowed SDK usage", () => {
-  const domainDir = path.join(__dirname, "..", "domain");
+  // This test reads TypeScript import syntax, so it must always point at the *source* domain/
+  // tree — never at compiled dist/ output (which has .js files with require(), not "from" imports).
+  // findProjectRoot makes that resolution correct whether this test runs via tsx-on-source or,
+  // as scripts/run-tests.js now always does, against the compiled dist/ output.
+  const domainDir = path.join(findProjectRoot(__dirname), "server", "domain");
   const files = fs.readdirSync(domainDir, { recursive: true, withFileTypes: false }) as string[];
   const tsFiles = files.filter((f) => String(f).endsWith(".ts")).map((f) => path.join(domainDir, String(f)));
   assert.ok(tsFiles.length >= 10, "expected the domain/ tree to contain multiple entity files");
