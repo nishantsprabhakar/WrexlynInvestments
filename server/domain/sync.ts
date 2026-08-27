@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 7: keeps the domain model (Company/Deal) in lockstep with the
  * legacy pipeline/store.ts Deal every time a flow touches it, instead of
  * relying solely on the one-time migrateLegacy.ts backfill. Reuses the
@@ -57,6 +60,13 @@ export function syncDomainDeal(legacyDeal: LegacyDeal): SyncedDomainDeal {
     id: domainDealId,
     companyId,
     opportunityId,
+    // fundId/vehicleId/dealTeamId/dealSizeM are set by other endpoints (Phase 8/12), never by
+    // syncDomainDeal itself — carried forward explicitly since upsertRaw replaces the whole
+    // record and would otherwise silently wipe them on every subsequent sync.
+    fundId: existing?.fundId,
+    vehicleId: existing?.vehicleId,
+    dealTeamId: existing?.dealTeamId,
+    dealSizeM: existing?.dealSizeM,
     strategy,
     stage: legacyDeal.stage,
     status: legacyDeal.status,

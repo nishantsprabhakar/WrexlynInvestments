@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Writes a client-uploaded {name, base64} file into a deal's sandboxed
  * workspace and extracts its text via the matching read tool — read_pdf
  * from the `wrexlyn` SDK, the other three are Investments-original (Core

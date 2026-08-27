@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4 domain entities: investment-committee process. ICDecisionSchema
  * requires `decidedBy: string[]` (human identifiers) as a non-empty,
  * required field — Core Principle 7 ("Human decision authority": Wrexlyn

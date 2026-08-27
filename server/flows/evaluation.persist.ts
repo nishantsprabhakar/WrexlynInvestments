@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 7: maps a validated + deterministically-computed evaluation note
  * into the shapes server/domain/entities/financials.ts's FinancialMetric,
  * CapitalStructure, and ReturnsCase expect — pure, no I/O, independently
@@ -65,6 +68,25 @@ export function buildCapitalStructureInput(note: any, dealId: string) {
     equityM: note.valuation.askCr * CR_TO_M,
     seniorDebtM: fa.debtCr != null ? fa.debtCr * CR_TO_M : undefined,
     currency: "INR",
+  };
+}
+
+/**
+ * Phase 13: formalizes the CapitalStructure's seniorDebtM figure into a
+ * real DebtFacility row. "term_loan_a" is a disclosed single-tranche
+ * default — the flow has no data on the company's actual tranche
+ * structure, so it isn't invented. Returns null when there's no debt to
+ * record, rather than persisting an empty facility.
+ */
+export function buildDebtFacilityInput(note: any, capitalStructureId: string) {
+  const fa = note.financialAnalysis;
+  if (fa.debtCr == null) return null;
+  return {
+    capitalStructureId,
+    name: "Term Loan A",
+    type: "term_loan_a" as const,
+    principalM: fa.debtCr * CR_TO_M,
+    covenants: [],
   };
 }
 

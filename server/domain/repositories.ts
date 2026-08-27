@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4: one createEntityStore(...) call per domain entity — the generic
  * factory (./store.ts) written once, instantiated 33 times. Each entity's
  * repository is exported by name; server/domain/migrateLegacy.ts and the

@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * App-level settings (which LLM provider/model is active). API keys never
  * live here — they stay in secretStore.ts's OS-native storage, shared with
  * the Wrexlyn coding-agent (same service name/base dir), so a key already

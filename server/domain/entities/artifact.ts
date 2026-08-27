@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4 domain entity: generated/attached documents. Generalizes what
  * server/flows/evaluation.ts and documentation.ts already track ad hoc as
  * loose fields on the legacy pipeline/store.ts Deal record.

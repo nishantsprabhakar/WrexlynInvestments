@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4: shared metadata every material domain entity carries, plus the
  * cross-cutting vocabulary (claim classification, investment strategy,
  * deal stage/status) referenced by more than one entity file. New `zod`

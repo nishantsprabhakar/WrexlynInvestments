@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4 domain entities: the origination/pipeline spine — Company through
  * to a tracked Deal, plus the evidence primitives (Source, ResearchFinding)
  * and the formalized ScreeningAssessment shape the existing screening flow

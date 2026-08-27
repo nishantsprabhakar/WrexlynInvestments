@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Per-deal sandboxed root directory — the same `ctx.root` concept the
  * vendored tools (create_docx/create_xlsx/redline_docx/read_pdf/...)
  * expect, confined via tools/paths.ts's resolveInRoot.

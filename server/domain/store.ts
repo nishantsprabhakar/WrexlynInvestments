@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4: one generic, validated JSON-file repository factory reused for
  * all 33 domain entities (see repositories.ts) — matching pipeline/store.ts's
  * existing local-first, no-DB-dependency pattern, and "reuse before

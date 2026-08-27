@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Flow 3: Documentation Review — any company-related document (legal,
  * financial, compliance, litigation), reviewed for risk. If a .docx was
  * uploaded, the flow attempts a REAL tracked-change redline (Wrexlyn's

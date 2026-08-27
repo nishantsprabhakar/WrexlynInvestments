@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Flow 2: Deal Evaluation — deck + financial model uploads → a full IC Note
  * (thesis, financials, valuation, risks paired with mitigants,
  * recommendation) rendered on-screen AND generated as a real .docx (via
@@ -15,7 +18,7 @@ import { EvaluationLlmOutputSchema } from "./schemas";
 import { applyDeterministicFinancials, applyDeterministicReturns } from "./evaluation.calc";
 import { recordAuditEntry } from "../domain/audit/auditLog";
 import { syncDomainDeal } from "../domain/sync";
-import { financialPeriods, financialMetrics, capitalStructures, returnsCases, investmentArtifacts, risksAndMitigants, sources, icMemoranda } from "../domain/repositories";
+import { financialPeriods, financialMetrics, capitalStructures, returnsCases, investmentArtifacts, risksAndMitigants, sources, icMemoranda, debtFacilities } from "../domain/repositories";
 import {
   buildEntryMetricInputs,
   buildProjectionYearInputs,
@@ -24,6 +27,7 @@ import {
   buildInvestmentArtifactInputs,
   buildRiskAndMitigantInputs,
   buildIcMemorandumInput,
+  buildDebtFacilityInput,
 } from "./evaluation.persist";
 import { buildSourceInput } from "../domain/sourceActions";
 import { CLASSIFICATION_RULES } from "./promptFragments";
@@ -244,7 +248,9 @@ export async function runEvaluationFlow(input: EvaluationInput) {
     for (const metric of year.metrics) financialMetrics.create({ financialPeriodId: period.id, ...metric });
   }
 
-  capitalStructures.create(buildCapitalStructureInput(note, domainDealId));
+  const capitalStructure = capitalStructures.create(buildCapitalStructureInput(note, domainDealId));
+  const debtFacilityInput = buildDebtFacilityInput(note, capitalStructure.id);
+  if (debtFacilityInput) debtFacilities.create(debtFacilityInput);
   for (const returnsCase of buildReturnsCaseInputs(note, domainDealId)) returnsCases.create(returnsCase);
   for (const risk of buildRiskAndMitigantInputs(note, domainDealId, deckSourceId)) risksAndMitigants.create(risk);
   for (const artifact of buildInvestmentArtifactInputs(

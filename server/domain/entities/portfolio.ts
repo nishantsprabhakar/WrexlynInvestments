@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4 domain entities: post-close portfolio monitoring through to
  * realized exit. FollowOnDecision carries the same human-authority rule as
  * ICDecisionSchema (decidedBy required, non-empty) — a follow-on

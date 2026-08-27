@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4: migrates records from the legacy pipeline/store.ts flat Deal
  * shape into the new domain entities. Run explicitly via `npm run
  * migrate:legacy` — deliberately not automatic on server boot, since a

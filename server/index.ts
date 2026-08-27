@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Plain http.createServer (no Express), matching Wrexlyn's own web/server.ts
  * convention — manual if-chain routing, static file serving, download/
  * artifact-preview endpoints ported verbatim from that pattern.
@@ -34,14 +37,35 @@ import {
   icMemoranda,
   approvalConditions,
   transactionMilestones,
+  contacts,
+  dealTeams,
+  investmentVehicles,
+  investmentMandates,
+  valueCreationInitiatives,
+  valuationCases,
+  debtFacilities,
+  capitalStructures,
 } from "./domain/repositories";
 import { capTableSumCheck, capTableDilution } from "./domain/finance/calculations";
 import { findOrCreateFundForStrategy, upsertPortfolioInvestment, buildExitScenarioInput, buildRealisedProceedsInput } from "./domain/portfolioActions";
 import { mapDecisionToMemorandumStatus } from "./domain/icActions";
+import { buildValuationCaseInput } from "./domain/valuationActions";
 
 const PORT = Number(process.env.PORT) || 4500;
-const PUBLIC_DIR = path.join(findProjectRoot(__dirname), "public");
+const PROJECT_ROOT = findProjectRoot(__dirname);
+const PUBLIC_DIR = path.join(PROJECT_ROOT, "public");
 const MAX_BODY_BYTES = 60 * 1024 * 1024; // generous cap for base64-encoded decks/models/data-room PDFs
+
+// Exact-match allowlist only (not a general root-directory server) — lets the in-app footer
+// link straight to the real license/policy files instead of duplicating their text into public/.
+const LEGAL_DOCS = new Set([
+  "/LICENSE",
+  "/TERMS_OF_SERVICE.md",
+  "/ACCEPTABLE_USE_POLICY.md",
+  "/PRIVACY_POLICY.md",
+  "/SECURITY.md",
+  "/THIRD_PARTY_NOTICES.md",
+]);
 
 const MODEL_CATALOG: Record<string, string[]> = {
   kilo: ["kilo-auto/free"],
@@ -95,6 +119,19 @@ const MIME: Record<string, string> = {
 };
 
 function serveStatic(pathname: string, res: http.ServerResponse): void {
+  if (LEGAL_DOCS.has(pathname)) {
+    fs.readFile(path.join(PROJECT_ROOT, pathname), (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end("Not found");
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-cache" });
+      res.end(data);
+    });
+    return;
+  }
+
   const rel = pathname === "/" ? "/index.html" : pathname;
   const safePath = path.normalize(rel).replace(/^([.]{2}[/\\])+/, "");
   const filePath = path.join(PUBLIC_DIR, safePath);
@@ -366,6 +403,217 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       return true;
     }
 
+    if (pathname === "/api/contacts" && method === "GET") {
+      sendJson(res, 200, { contacts: contacts.list() });
+      return true;
+    }
+
+    if (pathname === "/api/contacts" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!body.name) {
+        sendJson(res, 400, { error: "name is required" });
+        return true;
+      }
+      const contact = contacts.create({
+        name: body.name,
+        role: body.role || undefined,
+        companyId: body.companyId || undefined,
+        organizationId: body.organizationId || undefined,
+        email: body.email || undefined,
+        phone: body.phone || undefined,
+        notes: body.notes || undefined,
+      });
+      sendJson(res, 200, { contact });
+      return true;
+    }
+
+    if (pathname === "/api/deal-teams" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const team = dealTeams.list().find((t) => t.dealId === domainDealId) || null;
+      sendJson(res, 200, { team });
+      return true;
+    }
+
+    if (pathname === "/api/deal-teams" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const members = Array.isArray(body.members) ? body.members : [];
+      const existing = dealTeams.list().find((t) => t.dealId === domainDealId);
+      const team = existing ? dealTeams.update(existing.id, { members })! : dealTeams.create({ dealId: domainDealId, members });
+      domainDeals.update(domainDealId, { dealTeamId: team.id });
+      sendJson(res, 200, { team });
+      return true;
+    }
+
+    if (pathname === "/api/investment-vehicles" && method === "GET") {
+      const strategy = url.searchParams.get("strategy");
+      if (!strategy) {
+        sendJson(res, 400, { error: "missing strategy" });
+        return true;
+      }
+      const fundId = findOrCreateFundForStrategy(strategy as any);
+      sendJson(res, 200, { vehicles: investmentVehicles.list().filter((v) => v.fundId === fundId) });
+      return true;
+    }
+
+    if (pathname === "/api/investment-vehicles" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!body.strategy || !body.name) {
+        sendJson(res, 400, { error: "strategy and name are required" });
+        return true;
+      }
+      const fundId = findOrCreateFundForStrategy(body.strategy);
+      const vehicle = investmentVehicles.create({ fundId, name: body.name, vehicleType: body.vehicleType });
+      sendJson(res, 200, { vehicle });
+      return true;
+    }
+
+    if (pathname === "/api/deals/vehicle" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const deal = domainDeals.update(domainDealId, { vehicleId: body.vehicleId || undefined });
+      sendJson(res, 200, { deal });
+      return true;
+    }
+
+    if (pathname === "/api/investment-mandates" && method === "GET") {
+      const strategy = url.searchParams.get("strategy");
+      if (!strategy) {
+        sendJson(res, 400, { error: "missing strategy" });
+        return true;
+      }
+      const fundId = findOrCreateFundForStrategy(strategy as any);
+      sendJson(res, 200, { mandates: investmentMandates.list().filter((m) => m.fundId === fundId) });
+      return true;
+    }
+
+    if (pathname === "/api/investment-mandates" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!body.strategy) {
+        sendJson(res, 400, { error: "missing strategy" });
+        return true;
+      }
+      const fundId = findOrCreateFundForStrategy(body.strategy);
+      const mandate = investmentMandates.create({
+        fundId,
+        strategy: body.strategy,
+        sectors: Array.isArray(body.sectors) ? body.sectors : [],
+        geographies: Array.isArray(body.geographies) ? body.geographies : [],
+        checkSizeMinM: body.checkSizeMinM != null ? Number(body.checkSizeMinM) : undefined,
+        checkSizeMaxM: body.checkSizeMaxM != null ? Number(body.checkSizeMaxM) : undefined,
+        ownershipTargetPct: body.ownershipTargetPct != null ? Number(body.ownershipTargetPct) : undefined,
+        holdPeriodYearsMin: body.holdPeriodYearsMin != null ? Number(body.holdPeriodYearsMin) : undefined,
+        holdPeriodYearsMax: body.holdPeriodYearsMax != null ? Number(body.holdPeriodYearsMax) : undefined,
+      });
+      sendJson(res, 200, { mandate });
+      return true;
+    }
+
+    if (pathname === "/api/capital-structures" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      sendJson(res, 200, { capitalStructures: capitalStructures.list().filter((c) => c.dealId === domainDealId) });
+      return true;
+    }
+
+    if (pathname === "/api/valuation-cases" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      sendJson(res, 200, { valuationCases: valuationCases.list().filter((v) => v.dealId === domainDealId) });
+      return true;
+    }
+
+    if (pathname === "/api/valuation-cases" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const valuationCase = valuationCases.create(
+        buildValuationCaseInput(domainDealId, {
+          method: body.method,
+          cashFlows: Array.isArray(body.cashFlows) ? body.cashFlows.map(Number) : undefined,
+          discountRate: body.discountRate != null ? Number(body.discountRate) : undefined,
+          perpetualGrowthRate: body.perpetualGrowthRate != null ? Number(body.perpetualGrowthRate) : undefined,
+          metricValue: body.metricValue != null ? Number(body.metricValue) : undefined,
+          multiple: body.multiple != null ? Number(body.multiple) : undefined,
+          impliedValueM: body.impliedValueM != null ? Number(body.impliedValueM) : undefined,
+          notes: body.notes || undefined,
+        })
+      );
+      sendJson(res, 200, { valuationCase });
+      return true;
+    }
+
+    if (pathname === "/api/debt-facilities" && method === "GET") {
+      const capitalStructureId = url.searchParams.get("capitalStructureId");
+      if (!capitalStructureId) {
+        sendJson(res, 400, { error: "missing capitalStructureId" });
+        return true;
+      }
+      sendJson(res, 200, { debtFacilities: debtFacilities.list().filter((d) => d.capitalStructureId === capitalStructureId) });
+      return true;
+    }
+
+    if (pathname === "/api/debt-facilities" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!capitalStructures.get(String(body.capitalStructureId || ""))) {
+        sendJson(res, 404, { error: "capital structure not found" });
+        return true;
+      }
+      const facility = debtFacilities.create({
+        capitalStructureId: body.capitalStructureId,
+        name: body.name,
+        type: body.type,
+        principalM: Number(body.principalM) || 0,
+        interestRateDescription: body.interestRateDescription || undefined,
+        maturityDate: body.maturityDate || undefined,
+        covenants: Array.isArray(body.covenants) ? body.covenants : [],
+      });
+      sendJson(res, 200, { facility });
+      return true;
+    }
+
     if (pathname === "/api/cap-tables" && method === "GET") {
       const legacyDealId = url.searchParams.get("dealId");
       if (!legacyDealId) {
@@ -467,7 +715,37 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         followOnDecisions: followOnDecisions.list().filter((f) => f.portfolioInvestmentId === id),
         exitScenarios: exitScenarios.list().filter((e) => e.portfolioInvestmentId === id),
         realisedProceeds: realisedProceeds.list().filter((r) => r.portfolioInvestmentId === id),
+        valueCreationInitiatives: valueCreationInitiatives.list().filter((v) => v.portfolioInvestmentId === id),
       });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/value-creation-initiatives" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!portfolioInvestments.get(String(body.portfolioInvestmentId || ""))) {
+        sendJson(res, 404, { error: "portfolio investment not found" });
+        return true;
+      }
+      const initiative = valueCreationInitiatives.create({
+        portfolioInvestmentId: body.portfolioInvestmentId,
+        title: body.title,
+        description: body.description || undefined,
+        owner: body.owner || undefined,
+        targetImpactM: body.targetImpactM != null ? Number(body.targetImpactM) : undefined,
+      });
+      sendJson(res, 200, { initiative });
+      return true;
+    }
+
+    if (pathname === "/api/portfolio/value-creation-initiatives" && method === "PATCH") {
+      const id = url.searchParams.get("id");
+      const body = await readJsonBody(req);
+      if (!id || !valueCreationInitiatives.get(id)) {
+        sendJson(res, 404, { error: "value creation initiative not found" });
+        return true;
+      }
+      const initiative = valueCreationInitiatives.update(id, { status: body.status });
+      sendJson(res, 200, { initiative });
       return true;
     }
 
@@ -548,6 +826,9 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         })
       );
       portfolioInvestments.update(investment.id, { status: "exited" });
+      if (investment.dealId.startsWith("legacy:")) {
+        updateDeal(investment.dealId.slice("legacy:".length), { status: "Exited" });
+      }
       sendJson(res, 200, { proceeds });
       return true;
     }
@@ -711,6 +992,11 @@ const server = http.createServer((req, res) => {
   serveStatic(url.pathname, res);
 });
 
-server.listen(PORT, () => {
-  console.log(`Wrexlyn for Investments listening on http://localhost:${PORT}`);
+// Loopback-only: this app holds unpublished deal/portfolio data, and Node's http server
+// binds all interfaces (0.0.0.0) by default if no host is given — that would put it on the
+// LAN by default with no auth in front of it. Set HOST to override for an explicit, deliberate
+// LAN-exposure decision (see SECURITY.md).
+const HOST = process.env.HOST || "127.0.0.1";
+server.listen(PORT, HOST, () => {
+  console.log(`Wrexlyn for Investments listening on http://${HOST}:${PORT}`);
 });

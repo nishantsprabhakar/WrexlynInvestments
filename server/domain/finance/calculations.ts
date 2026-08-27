@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 5: deterministic finance engine — Core Principle 6 ("LLMs never
  * authoritative for financial calculations"). Every function here is pure
  * (no I/O, no LLM calls) and unit-tested in ../../__tests__/finance.test.ts.

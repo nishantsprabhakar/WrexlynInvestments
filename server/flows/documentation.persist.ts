@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 7: maps a documentation review into the shapes
  * server/domain/entities/diligence.ts's RiskAndMitigant and
  * server/domain/entities/artifact.ts's InvestmentArtifact expect — pure,

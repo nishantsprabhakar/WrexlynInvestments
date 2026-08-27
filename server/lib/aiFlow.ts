@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Shared "one structured JSON call" helper used by every flow — mirrors
  * Praevix's proven callAIJson pattern (direct-parse, then strip fences,
  * then extract the outermost {...}), backed by the real `wrexlyn` SDK's

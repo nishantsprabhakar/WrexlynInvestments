@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 6 audit-trail tests: append-only round-trip, dealId filtering,
  * corrupted-line tolerance, and the architectural guarantee that no
  * update/remove function is exported.

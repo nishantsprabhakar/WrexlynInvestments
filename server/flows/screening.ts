@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Flow 1: Initial Screening — company name (+ optional deck), rated across
  * 8 PE dimensions from public-data research. Dimension set matches
  * Praevix's proven SCORE_SYSTEM shape (no need to reinvent it).

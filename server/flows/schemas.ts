@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 5: the validation gate on AI-generated output. Before Phase 5,
  * `runStructuredJson`'s parsed result was used as-is with zero shape
  * check — a malformed or partially-wrong LLM response flowed straight

@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 9: the Core Principle 5 classification rules, shared verbatim
  * across all 3 flow prompts instead of being copy-pasted into each one.
  * First written for screening.ts in Phase 6; extracted here so

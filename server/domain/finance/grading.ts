@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 5: letter-grade derivation from a 0-100 overall rating. The
  * screening prompt states coarse bands (88+ = A+/A, 74-87 = B range,
  * 58-73 = C range, 40-57 = D, below 40 = F) but never specifies the +/-

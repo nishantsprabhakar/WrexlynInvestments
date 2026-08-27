@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Deal pipeline store — real server-side JSON-file persistence (an upgrade
  * over Praevix's localStorage), taxonomy taken verbatim from the reference
  * SKEGEN Fund Intelligence dashboard: 9 funnel stages, 4 statuses.
@@ -20,7 +23,7 @@ export const STAGES: string[] = [
   "9. Close / Investment",
 ];
 
-export const STATUSES = ["Active", "Invested", "Rejected", "On Hold"] as const;
+export const STATUSES = ["Active", "Invested", "Rejected", "On Hold", "Exited"] as const;
 export type DealStatus = (typeof STATUSES)[number];
 
 export interface ScreeningRecord {

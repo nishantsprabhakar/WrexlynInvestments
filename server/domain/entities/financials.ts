@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4 domain entities: financials, valuation, and capital structure.
  * FinancialPeriod/FinancialMetric are deliberately generic (a metric name +
  * value pair) so the same shape covers PE's revenue/EBITDA and VC's

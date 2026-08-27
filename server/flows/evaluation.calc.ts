@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 5: overlays deterministically-computed financial figures onto a
  * validated evaluation note, replacing whatever the LLM claimed for
  * margin/growth/returns (Core Principle 6). The LLM still supplies the

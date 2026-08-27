@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  *
  * COMPATIBILITY SHIM (Phase 3 migration): re-exports the shared LLM/tool contract from the "wrexlyn"
  * package instead of hand-declaring a trimmed copy. Kept as a same-path shim — rather than rewriting

@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * New tool, same shape as pdf.ts's readPdfTool: raw-text extraction from an
  * uploaded .docx via mammoth.extractRawText. Wrexlyn itself only uses mammoth
  * for HTML preview (artifactPreview.ts), not for feeding text back into an

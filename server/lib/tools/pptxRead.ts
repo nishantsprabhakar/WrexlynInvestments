@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * New tool, same shape as pdf.ts's readPdfTool: raw-text extraction from an
  * uploaded .pptx deck (unzips the OOXML and pulls <a:t> text runs per slide,
  * in slide order) — needed for Screening/Evaluation deck ingestion, which

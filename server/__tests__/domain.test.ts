@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 4 domain-layer tests: schema validation, the generic store's
  * CRUD/versioning/statusHistory behavior, legacy-data migration, and the
  * explicit PE + VC fixture proof that one entity set serves both.

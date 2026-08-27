@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 7 tests: each build* helper in the 3 new *.persist.ts files, given
  * a validated sample report/note/review, produces the exact expected
  * entity-shaped object — no LLM mocking needed since these are pure
@@ -17,6 +20,7 @@ import {
   buildInvestmentArtifactInputs,
   buildRiskAndMitigantInputs as buildEvaluationRiskInputs,
   buildIcMemorandumInput,
+  buildDebtFacilityInput,
 } from "../flows/evaluation.persist";
 import { buildRiskAndMitigantInputs as buildDocumentationRiskInputs, buildInvestmentArtifactInput } from "../flows/documentation.persist";
 
@@ -88,6 +92,20 @@ test("buildCapitalStructureInput: converts Rs Cr to *M fields (1 Cr = 10 M)", ()
   assert.equal(input.equityM, 2000); // 200 Cr * 10
   assert.equal(input.seniorDebtM, 150); // 15 Cr * 10
   assert.equal(input.currency, "INR");
+});
+
+test("buildDebtFacilityInput: converts Rs Cr debt to *M and labels it a disclosed single-tranche default", () => {
+  const input = buildDebtFacilityInput(SAMPLE_NOTE, "cst_1")!;
+  assert.equal(input.capitalStructureId, "cst_1");
+  assert.equal(input.name, "Term Loan A");
+  assert.equal(input.type, "term_loan_a");
+  assert.equal(input.principalM, 150); // 15 Cr * 10
+  assert.deepEqual(input.covenants, []);
+});
+
+test("buildDebtFacilityInput: returns null when the note discloses no debt", () => {
+  const noteWithoutDebt = { ...SAMPLE_NOTE, financialAnalysis: { ...SAMPLE_NOTE.financialAnalysis, debtCr: undefined } };
+  assert.equal(buildDebtFacilityInput(noteWithoutDebt, "cst_1"), null);
 });
 
 test("buildReturnsCaseInputs: one ReturnsCase per scenario, using the raw numeric fields not the formatted strings", () => {

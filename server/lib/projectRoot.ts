@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Locates the project root (the directory containing package.json) by
  * walking up from a starting directory, instead of a fixed `../../..`
  * count. A fixed count is only correct for one specific execution mode —

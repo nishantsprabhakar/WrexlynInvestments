@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 10 tests: Source-record building (kind derived per file extension)
  * and ResearchFinding building (one per keyFact, classification + sourceId
  * carried through) — both pure, no I/O.

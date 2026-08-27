@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 8 tests: fund auto-provisioning, idempotent PortfolioInvestment
  * upsert, and the two pure return-calculation builders (exit scenarios via
  * lboReturns, realised proceeds via real-dated xirr/moic).

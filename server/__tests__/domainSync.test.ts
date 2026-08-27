@@ -1,5 +1,8 @@
 /**
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Phase 7 tests: syncDomainDeal keeps the domain Company/Deal in lockstep
  * with a legacy pipeline deal — creates on first call, updates in place
  * (not duplicating) on repeat calls, and defaults/respects strategy.
@@ -116,6 +119,24 @@ test("syncDomainDeal: a second sync does not create a duplicate Opportunity", ()
     const secondOpportunityId = deals.get(second.dealId)!.opportunityId;
 
     assert.equal(secondOpportunityId, firstOpportunityId);
+  } finally {
+    cleanup(legacy.id, legacy.companyName);
+  }
+});
+
+test("syncDomainDeal: preserves dealTeamId/vehicleId/fundId set by another endpoint across a subsequent sync", () => {
+  const legacy = makeLegacyDeal();
+  try {
+    const { dealId } = syncDomainDeal(legacy);
+    // Simulate what /api/deal-teams and /api/deals/vehicle do: a direct update outside syncDomainDeal.
+    deals.update(dealId, { dealTeamId: "dea_test123", vehicleId: "veh_test456", fundId: "fun_test789" });
+
+    syncDomainDeal(legacy); // a second, unrelated sync — must not wipe the fields just set
+    const domainDeal = deals.get(dealId)!;
+
+    assert.equal(domainDeal.dealTeamId, "dea_test123");
+    assert.equal(domainDeal.vehicleId, "veh_test456");
+    assert.equal(domainDeal.fundId, "fun_test789");
   } finally {
     cleanup(legacy.id, legacy.companyName);
   }
