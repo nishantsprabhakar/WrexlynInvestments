@@ -8,7 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { syncDomainDeal } from "../domain/sync";
-import { companies, deals } from "../domain/repositories";
+import { companies, deals, opportunities } from "../domain/repositories";
 import type { Deal as LegacyDeal } from "../pipeline/store";
 
 function makeLegacyDeal(overrides: Partial<LegacyDeal> = {}): LegacyDeal {
@@ -25,7 +25,10 @@ function makeLegacyDeal(overrides: Partial<LegacyDeal> = {}): LegacyDeal {
 }
 
 function cleanup(legacyDealId: string, companyName: string) {
-  deals.remove(`legacy:${legacyDealId}`);
+  const dealId = `legacy:${legacyDealId}`;
+  const deal = deals.get(dealId);
+  if (deal?.opportunityId) opportunities.remove(deal.opportunityId);
+  deals.remove(dealId);
   const company = companies.list().find((c) => c.legalName === companyName);
   if (company) companies.remove(company.id);
 }
@@ -81,6 +84,38 @@ test("syncDomainDeal: respects an explicit strategy on the legacy deal", () => {
   try {
     const { dealId } = syncDomainDeal(legacy);
     assert.equal(deals.get(dealId)!.strategy, "pe_buyout");
+  } finally {
+    cleanup(legacy.id, legacy.companyName);
+  }
+});
+
+test("syncDomainDeal: backfills an Opportunity at 'passed_to_deal' on first sync and links Deal.opportunityId", () => {
+  const legacy = makeLegacyDeal();
+  try {
+    const { dealId } = syncDomainDeal(legacy);
+    const domainDeal = deals.get(dealId)!;
+    assert.ok(domainDeal.opportunityId);
+
+    const opportunity = opportunities.get(domainDeal.opportunityId!);
+    assert.ok(opportunity);
+    assert.equal(opportunity!.stage, "passed_to_deal");
+    assert.equal(opportunity!.companyId, domainDeal.companyId);
+  } finally {
+    cleanup(legacy.id, legacy.companyName);
+  }
+});
+
+test("syncDomainDeal: a second sync does not create a duplicate Opportunity", () => {
+  const legacy = makeLegacyDeal();
+  try {
+    const first = syncDomainDeal(legacy);
+    const firstOpportunityId = deals.get(first.dealId)!.opportunityId;
+
+    const changed = { ...legacy, stage: "2. Initial Screening", updatedAt: Date.now() };
+    const second = syncDomainDeal(changed);
+    const secondOpportunityId = deals.get(second.dealId)!.opportunityId;
+
+    assert.equal(secondOpportunityId, firstOpportunityId);
   } finally {
     cleanup(legacy.id, legacy.companyName);
   }

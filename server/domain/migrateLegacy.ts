@@ -13,19 +13,10 @@
  * dimension breakdowns, full documentation reviews) are not fabricated —
  * only what was really there is carried over.
  */
-import * as path from "path";
 import { listDeals, type Deal as LegacyDeal } from "../pipeline/store";
 import { deals, screeningAssessments, financialPeriods, financialMetrics, investmentArtifacts, sources } from "./repositories";
 import { findOrCreateCompany, DEFAULT_STRATEGY as DEFAULT_MIGRATED_STRATEGY } from "./sync";
-
-function sourceKindFromFileName(fileName: string): "pdf" | "docx" | "pptx" | "xlsx" | "other" {
-  const ext = path.extname(fileName).toLowerCase().replace(".", "");
-  if (ext === "pdf") return "pdf";
-  if (ext === "docx" || ext === "doc") return "docx";
-  if (ext === "pptx" || ext === "ppt") return "pptx";
-  if (ext === "xlsx" || ext === "xls") return "xlsx";
-  return "other";
-}
+import { sourceKindFromFileName } from "./sourceActions";
 
 export interface MigrationSummary {
   totalLegacyDeals: number;

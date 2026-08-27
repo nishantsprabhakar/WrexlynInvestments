@@ -14,8 +14,9 @@ import { upsertDealByCompanyName, type Deal, type DocumentationRecord } from "..
 import { redlineDocxTool } from "wrexlyn";
 import { recordAuditEntry } from "../domain/audit/auditLog";
 import { syncDomainDeal } from "../domain/sync";
-import { risksAndMitigants, investmentArtifacts } from "../domain/repositories";
+import { risksAndMitigants, investmentArtifacts, sources } from "../domain/repositories";
 import { buildRiskAndMitigantInputs, buildInvestmentArtifactInput } from "./documentation.persist";
+import { buildSourceInput } from "../domain/sourceActions";
 import { DocumentationLlmOutputSchema } from "./schemas";
 import { CLASSIFICATION_RULES } from "./promptFragments";
 
@@ -57,7 +58,7 @@ export async function runDocumentationFlow(input: DocumentationInput) {
   const dealName = (input.companyName || "").trim() || "Unfiled Documentation Review";
   const deal = upsertDealByCompanyName(dealName, {});
   const root = dealWorkspaceRoot(deal.id);
-  const { dealId: domainDealId } = syncDomainDeal(deal);
+  const { companyId, dealId: domainDealId } = syncDomainDeal(deal);
 
   const results: any[] = [];
   const docRecords: DocumentationRecord[] = [];
@@ -118,7 +119,8 @@ export async function runDocumentationFlow(input: DocumentationInput) {
       validationOk: true,
     });
 
-    for (const risk of buildRiskAndMitigantInputs(review, domainDealId)) risksAndMitigants.create(risk);
+    const sourceId = sources.create(buildSourceInput(domainDealId, companyId, ingested)).id;
+    for (const risk of buildRiskAndMitigantInputs(review, domainDealId, sourceId)) risksAndMitigants.create(risk);
     if (redlinedDocPath) investmentArtifacts.create(buildInvestmentArtifactInput(domainDealId, redlinedDocPath));
   }
 

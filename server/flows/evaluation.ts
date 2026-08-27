@@ -15,7 +15,7 @@ import { EvaluationLlmOutputSchema } from "./schemas";
 import { applyDeterministicFinancials, applyDeterministicReturns } from "./evaluation.calc";
 import { recordAuditEntry } from "../domain/audit/auditLog";
 import { syncDomainDeal } from "../domain/sync";
-import { financialPeriods, financialMetrics, capitalStructures, returnsCases, investmentArtifacts, risksAndMitigants } from "../domain/repositories";
+import { financialPeriods, financialMetrics, capitalStructures, returnsCases, investmentArtifacts, risksAndMitigants, sources, icMemoranda } from "../domain/repositories";
 import {
   buildEntryMetricInputs,
   buildProjectionYearInputs,
@@ -23,7 +23,9 @@ import {
   buildReturnsCaseInputs,
   buildInvestmentArtifactInputs,
   buildRiskAndMitigantInputs,
+  buildIcMemorandumInput,
 } from "./evaluation.persist";
+import { buildSourceInput } from "../domain/sourceActions";
 import { CLASSIFICATION_RULES } from "./promptFragments";
 
 const EVALUATION_SYSTEM = `You are a senior private-equity investment associate drafting a full Investment Committee (IC) note from a company deck and financial model. Be decisive, specific, and quantitative — this feeds a real investment decision.
@@ -224,6 +226,9 @@ export async function runEvaluationFlow(input: EvaluationInput) {
 
   const { companyId, dealId: domainDealId } = syncDomainDeal(updated);
 
+  const deckSourceId = deckIngest.ok ? sources.create(buildSourceInput(domainDealId, companyId, deckIngest)).id : undefined;
+  const modelSourceId = modelIngest.ok ? sources.create(buildSourceInput(domainDealId, companyId, modelIngest)).id : undefined;
+
   const entryPeriod = financialPeriods.create({
     companyId,
     dealId: domainDealId,
@@ -231,17 +236,17 @@ export async function runEvaluationFlow(input: EvaluationInput) {
     periodType: "actual",
     currency: "INR",
   });
-  for (const metric of buildEntryMetricInputs(note)) {
+  for (const metric of buildEntryMetricInputs(note, modelSourceId)) {
     financialMetrics.create({ financialPeriodId: entryPeriod.id, ...metric });
   }
-  for (const year of buildProjectionYearInputs(note)) {
+  for (const year of buildProjectionYearInputs(note, modelSourceId)) {
     const period = financialPeriods.create({ companyId, dealId: domainDealId, label: year.label, periodType: year.periodType, currency: "INR" });
     for (const metric of year.metrics) financialMetrics.create({ financialPeriodId: period.id, ...metric });
   }
 
   capitalStructures.create(buildCapitalStructureInput(note, domainDealId));
   for (const returnsCase of buildReturnsCaseInputs(note, domainDealId)) returnsCases.create(returnsCase);
-  for (const risk of buildRiskAndMitigantInputs(note, domainDealId)) risksAndMitigants.create(risk);
+  for (const risk of buildRiskAndMitigantInputs(note, domainDealId, deckSourceId)) risksAndMitigants.create(risk);
   for (const artifact of buildInvestmentArtifactInputs(
     domainDealId,
     docxResult.ok ? `${deal.id}/IC_Note.docx` : undefined,
@@ -249,6 +254,9 @@ export async function runEvaluationFlow(input: EvaluationInput) {
   )) {
     investmentArtifacts.create(artifact);
   }
+
+  const existingMemoCount = icMemoranda.list().filter((m) => m.dealId === domainDealId).length;
+  icMemoranda.create(buildIcMemorandumInput(note, domainDealId, existingMemoCount + 1));
 
   return {
     deal: updated,

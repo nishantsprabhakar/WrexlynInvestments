@@ -7,7 +7,7 @@
  * and its findOrCreateCompany — moved here so both call sites share one
  * implementation.
  */
-import { companies, deals } from "./repositories";
+import { companies, deals, opportunities } from "./repositories";
 import type { Deal as LegacyDeal } from "../pipeline/store";
 import type { InvestmentStrategy } from "./common";
 
@@ -26,16 +26,37 @@ export interface SyncedDomainDeal {
   dealId: string;
 }
 
-/** Upserts the domain Company + Deal for a legacy pipeline deal. Idempotent: re-running for the same legacy deal updates the existing domain Deal in place. */
+/**
+ * Upserts the domain Company + Deal for a legacy pipeline deal. Idempotent:
+ * re-running for the same legacy deal updates the existing domain Deal in
+ * place. On the *first* sync only, also backfills an Opportunity at stage
+ * "passed_to_deal" — every Deal genuinely was an identified opportunity
+ * that reached that stage, whether or not it was tracked; earlier stages
+ * (identified/initial_contact/nda_signed) are never guessed at, since
+ * those weren't actually observed.
+ */
 export function syncDomainDeal(legacyDeal: LegacyDeal): SyncedDomainDeal {
   const companyId = findOrCreateCompany(legacyDeal.companyName, legacyDeal.sector);
   const domainDealId = `legacy:${legacyDeal.id}`;
   const existing = deals.get(domainDealId);
   const strategy: InvestmentStrategy = (legacyDeal.strategy as InvestmentStrategy) || existing?.strategy || DEFAULT_STRATEGY;
 
+  let opportunityId = existing?.opportunityId;
+  if (!existing) {
+    const opportunity = opportunities.create({
+      companyId,
+      strategy,
+      stage: "passed_to_deal",
+      notes:
+        "Backfilled when this deal was created in the domain model — its earlier sourcing stages (identified/initial contact/NDA) were not tracked separately and are not guessed at here.",
+    });
+    opportunityId = opportunity.id;
+  }
+
   deals.upsertRaw({
     id: domainDealId,
     companyId,
+    opportunityId,
     strategy,
     stage: legacyDeal.stage,
     status: legacyDeal.status,

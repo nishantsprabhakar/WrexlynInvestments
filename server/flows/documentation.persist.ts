@@ -6,14 +6,15 @@
  * no I/O, independently testable without mocking the LLM.
  */
 
-export function buildRiskAndMitigantInputs(review: any, dealId: string) {
+/** sourceId (Phase 10) is the document being reviewed's own Source — each flag is a direct claim about that one document. */
+export function buildRiskAndMitigantInputs(review: any, dealId: string, sourceId?: string) {
   return (review.riskFlags || []).map((f: any) => ({
     dealId,
     risk: f.flag,
     severity: (f.severity || "medium") as "high" | "medium" | "low",
     mitigant: f.recommendedAction || undefined,
     status: "open" as const,
-    provenance: { classification: f.classification },
+    provenance: { classification: f.classification, sourceId },
   }));
 }
 

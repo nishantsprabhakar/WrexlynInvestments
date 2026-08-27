@@ -34,6 +34,7 @@
     <button class="tab-btn" data-view="ic-decisions">IC Decisions</button>
     <button class="tab-btn" data-view="captable-vc">Cap Table / VC</button>
     <button class="tab-btn" data-view="portfolio">Portfolio</button>
+    <button class="tab-btn" data-view="diligence">Diligence</button>
   </nav>
   <div class="top-right">
     <span class="status-chip"><span class="status-dot"></span> LIVE</span>
@@ -132,10 +133,17 @@
 <!-- IC DECISIONS -->
 <main class="view" id="view-ic-decisions">
   <div class="panel">
+    <div class="panel-title">IC Memorandum</div>
+    <p class="sub">Each evaluation run creates a new, versioned memorandum. Select one to view its sections or link it to a decision below.</p>
+    <div class="field"><label>Deal</label><select id="ic-deal"></select></div>
+    <div class="field"><label>Memorandum</label><select id="ic-memo-select"><option value="">None</option></select></div>
+    <div id="ic-memo-detail"></div>
+  </div>
+
+  <div class="panel">
     <div class="panel-title">Investment Committee · Record a Decision</div>
     <h2>Record an IC decision</h2>
     <p class="sub">Core Principle 7 — Wrexlyn drafts and analyzes, but never casts an IC vote. Every decision must name at least one human decision-maker.</p>
-    <div class="field"><label>Deal</label><select id="ic-deal"></select></div>
     <div class="two-col">
       <div class="field">
         <label>Decision</label>
@@ -149,9 +157,34 @@
       <div class="field"><label>Decided by (comma-separated names)</label><input type="text" id="ic-decided-by" placeholder="e.g. Priya Shah, Rohan Mehta"/></div>
     </div>
     <div class="field"><label>Rationale (optional)</label><textarea class="notes-box" id="ic-rationale" placeholder="Why this decision…"></textarea></div>
+    <div id="ic-conditions-field" style="display:none">
+      <div class="section-label">Conditions</div>
+      <div id="ic-conditions-rows"></div>
+      <button class="btn btn-sm" id="ic-add-condition-btn" type="button">+ Add Condition</button>
+    </div>
     <div style="margin-top:16px"><button class="btn btn-primary" id="ic-record-btn">Record Decision</button></div>
   </div>
   <div id="ic-decisions-result"></div>
+
+  <div class="panel">
+    <div class="panel-title">Transaction Milestones</div>
+    <div class="two-col">
+      <div class="field">
+        <label>Milestone</label>
+        <select id="ms-type">
+          <option value="loi_signed">LOI Signed</option>
+          <option value="spa_signed">SPA Signed</option>
+          <option value="regulatory_approval">Regulatory Approval</option>
+          <option value="financing_close">Financing Close</option>
+          <option value="closing">Closing</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field"><label>Target date (optional)</label><input type="date" id="ms-target-date"/></div>
+    </div>
+    <button class="btn btn-sm" id="ms-add-btn" type="button">+ Add Milestone</button>
+    <div id="ms-list" style="margin-top:12px"></div>
+  </div>
 </main>
 
 <!-- CAP TABLE / VC -->
@@ -207,6 +240,23 @@
   </div>
 
   <div id="pf-detail"></div>
+</main>
+
+<!-- DILIGENCE -->
+<main class="view" id="view-diligence">
+  <div class="panel">
+    <div class="panel-title">Diligence Command Centre</div>
+    <h2>Diligence workstreams</h2>
+    <p class="sub">Track structured due-diligence work by workstream (Commercial, Financial, Legal, Tech) and its individual data-room requests.</p>
+    <div class="two-col">
+      <div class="field"><label>Deal</label><select id="dl-deal"></select></div>
+      <div class="field"><label>Workstream name</label><input type="text" id="dl-ws-name" placeholder="e.g. Legal"/></div>
+    </div>
+    <div class="field"><label>Owner (optional)</label><input type="text" id="dl-ws-owner"/></div>
+    <button class="btn btn-primary" id="dl-add-ws-btn">Add Workstream</button>
+  </div>
+
+  <div id="dl-workstreams"></div>
 </main>
 
 <!-- Add / edit deal modal -->

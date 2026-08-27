@@ -29,9 +29,15 @@ import {
   followOnDecisions,
   exitScenarios,
   realisedProceeds,
+  diligenceWorkstreams,
+  diligenceRequests,
+  icMemoranda,
+  approvalConditions,
+  transactionMilestones,
 } from "./domain/repositories";
 import { capTableSumCheck, capTableDilution } from "./domain/finance/calculations";
 import { findOrCreateFundForStrategy, upsertPortfolioInvestment, buildExitScenarioInput, buildRealisedProceedsInput } from "./domain/portfolioActions";
+import { mapDecisionToMemorandumStatus } from "./domain/icActions";
 
 const PORT = Number(process.env.PORT) || 4500;
 const PUBLIC_DIR = path.join(findProjectRoot(__dirname), "public");
@@ -235,7 +241,11 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         return true;
       }
       const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
-      sendJson(res, 200, { decisions: icDecisions.list().filter((d) => d.dealId === domainDealId) });
+      const decisions = icDecisions.list().filter((d) => d.dealId === domainDealId).map((d) => ({
+        ...d,
+        conditions: approvalConditions.list().filter((c) => c.icDecisionId === d.id),
+      }));
+      sendJson(res, 200, { decisions });
       return true;
     }
 
@@ -252,14 +262,107 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         return true;
       }
       const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const icMemorandumId = body.icMemorandumId || undefined;
       const decision = icDecisions.create({
         dealId: domainDealId,
+        icMemorandumId,
         decision: body.decision,
         decidedBy,
         decidedAt: Date.now(),
         rationale: body.rationale || undefined,
       });
-      sendJson(res, 200, { decision });
+
+      if (icMemorandumId) {
+        icMemoranda.update(icMemorandumId, { status: mapDecisionToMemorandumStatus(body.decision) });
+      }
+
+      const conditionTexts = Array.isArray(body.conditions) ? body.conditions.map(String).map((s: string) => s.trim()).filter(Boolean) : [];
+      const conditions = conditionTexts.map((condition: string) => approvalConditions.create({ icDecisionId: decision.id, condition }));
+
+      sendJson(res, 200, { decision: { ...decision, conditions } });
+      return true;
+    }
+
+    if (pathname === "/api/ic-memoranda" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      sendJson(res, 200, { memoranda: icMemoranda.list().filter((m) => m.dealId === domainDealId) });
+      return true;
+    }
+
+    if (pathname === "/api/approval-conditions" && (method === "PATCH" || method === "PUT")) {
+      const id = url.searchParams.get("id");
+      if (!id) {
+        sendJson(res, 400, { error: "missing id" });
+        return true;
+      }
+      const body = await readJsonBody(req);
+      const condition = approvalConditions.update(id, { status: body.status });
+      if (!condition) {
+        sendJson(res, 404, { error: "condition not found" });
+        return true;
+      }
+      sendJson(res, 200, { condition });
+      return true;
+    }
+
+    if (pathname === "/api/milestones" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      sendJson(res, 200, { milestones: transactionMilestones.list().filter((m) => m.dealId === domainDealId) });
+      return true;
+    }
+
+    if (pathname === "/api/milestones" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const milestone = transactionMilestones.create({
+        dealId: domainDealId,
+        milestone: body.milestone,
+        targetDate: body.targetDate || undefined,
+      });
+      sendJson(res, 200, { milestone });
+      return true;
+    }
+
+    if (pathname === "/api/milestones" && (method === "PATCH" || method === "PUT")) {
+      const id = url.searchParams.get("id");
+      if (!id) {
+        sendJson(res, 400, { error: "missing id" });
+        return true;
+      }
+      const body = await readJsonBody(req);
+      const patch: Record<string, unknown> = { status: body.status };
+      if (body.status === "complete") patch.actualDate = body.actualDate || new Date().toISOString().slice(0, 10);
+      const milestone = transactionMilestones.update(id, patch);
+      if (!milestone) {
+        sendJson(res, 404, { error: "milestone not found" });
+        return true;
+      }
+      sendJson(res, 200, { milestone });
       return true;
     }
 
@@ -446,6 +549,79 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       );
       portfolioInvestments.update(investment.id, { status: "exited" });
       sendJson(res, 200, { proceeds });
+      return true;
+    }
+
+    if (pathname === "/api/diligence" && method === "GET") {
+      const legacyDealId = url.searchParams.get("dealId");
+      if (!legacyDealId) {
+        sendJson(res, 400, { error: "missing dealId" });
+        return true;
+      }
+      const legacyDeal = getDeal(legacyDealId);
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const workstreams = diligenceWorkstreams.list().filter((w) => w.dealId === domainDealId);
+      const withRequests = workstreams.map((w) => ({
+        ...w,
+        requests: diligenceRequests.list().filter((r) => r.workstreamId === w.id),
+      }));
+      sendJson(res, 200, { workstreams: withRequests });
+      return true;
+    }
+
+    if (pathname === "/api/diligence/workstreams" && method === "POST") {
+      const body = await readJsonBody(req);
+      const legacyDeal = getDeal(String(body.dealId || ""));
+      if (!legacyDeal) {
+        sendJson(res, 404, { error: "deal not found" });
+        return true;
+      }
+      const { dealId: domainDealId } = syncDomainDeal(legacyDeal);
+      const workstream = diligenceWorkstreams.create({
+        dealId: domainDealId,
+        name: body.name,
+        owner: body.owner || undefined,
+      });
+      sendJson(res, 200, { workstream });
+      return true;
+    }
+
+    if (pathname === "/api/diligence/requests" && method === "POST") {
+      const body = await readJsonBody(req);
+      if (!diligenceWorkstreams.get(String(body.workstreamId || ""))) {
+        sendJson(res, 404, { error: "workstream not found" });
+        return true;
+      }
+      const request = diligenceRequests.create({
+        workstreamId: body.workstreamId,
+        question: body.question,
+        askedAt: Date.now(),
+      });
+      sendJson(res, 200, { request });
+      return true;
+    }
+
+    if (pathname === "/api/diligence/requests" && (method === "PATCH" || method === "PUT")) {
+      const id = url.searchParams.get("id");
+      if (!id) {
+        sendJson(res, 400, { error: "missing id" });
+        return true;
+      }
+      const body = await readJsonBody(req);
+      const request = diligenceRequests.update(id, {
+        response: body.response,
+        status: "answered",
+        answeredAt: Date.now(),
+      });
+      if (!request) {
+        sendJson(res, 404, { error: "request not found" });
+        return true;
+      }
+      sendJson(res, 200, { request });
       return true;
     }
 

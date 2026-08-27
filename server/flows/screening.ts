@@ -12,8 +12,9 @@ import { ScreeningLlmOutputSchema } from "./schemas";
 import { applyDeterministicScreening } from "./screening.calc";
 import { recordAuditEntry } from "../domain/audit/auditLog";
 import { syncDomainDeal } from "../domain/sync";
-import { screeningAssessments } from "../domain/repositories";
-import { buildScreeningAssessmentRecord } from "./screening.persist";
+import { screeningAssessments, sources, researchFindings } from "../domain/repositories";
+import { buildScreeningAssessmentRecord, buildResearchFindingInputs } from "./screening.persist";
+import { buildSourceInput } from "../domain/sourceActions";
 import { CLASSIFICATION_RULES } from "./promptFragments";
 
 const SCREENING_SYSTEM = `You are a senior private-equity screening analyst producing an institutional-grade initial screen. You work ONLY from publicly available information (and any deck text supplied) — never fabricate financials with false precision; use ranges and say "estimated" where appropriate.
@@ -49,9 +50,10 @@ export async function runScreeningFlow(input: ScreeningInput) {
   const root = dealWorkspaceRoot(deal.id);
 
   let deckText = "";
+  let ingestedDeck: Awaited<ReturnType<typeof ingestUploadedFile>> | undefined;
   if (input.deckFile) {
-    const ingested = await ingestUploadedFile(root, input.deckFile);
-    deckText = ingested.ok ? ingested.text : "";
+    ingestedDeck = await ingestUploadedFile(root, input.deckFile);
+    deckText = ingestedDeck.ok ? ingestedDeck.text : "";
   }
 
   const userContent = deckText
@@ -81,8 +83,16 @@ export async function runScreeningFlow(input: ScreeningInput) {
     validationOk: true,
   });
 
-  const { dealId: domainDealId } = syncDomainDeal(updated);
+  const { companyId, dealId: domainDealId } = syncDomainDeal(updated);
   screeningAssessments.create(buildScreeningAssessmentRecord(report, domainDealId));
+
+  let sourceId: string | undefined;
+  if (ingestedDeck?.ok) {
+    sourceId = sources.create(buildSourceInput(domainDealId, companyId, ingestedDeck)).id;
+  }
+  for (const finding of buildResearchFindingInputs(report, domainDealId, companyId, sourceId)) {
+    researchFindings.create(finding);
+  }
 
   return { deal: updated, report };
 }

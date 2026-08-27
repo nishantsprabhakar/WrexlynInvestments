@@ -16,6 +16,7 @@ import {
   buildReturnsCaseInputs,
   buildInvestmentArtifactInputs,
   buildRiskAndMitigantInputs as buildEvaluationRiskInputs,
+  buildIcMemorandumInput,
 } from "../flows/evaluation.persist";
 import { buildRiskAndMitigantInputs as buildDocumentationRiskInputs, buildInvestmentArtifactInput } from "../flows/documentation.persist";
 
@@ -153,4 +154,29 @@ test("buildInvestmentArtifactInput: a redline artifact", () => {
     generatedBy: "ai",
     sourceFlow: "documentation",
   });
+});
+
+test("buildIcMemorandumInput: maps note's narrative fields into sections, omitting empty ones, draft status", () => {
+  const note = {
+    executiveSummary: "A solid opportunity.",
+    investmentThesis: "Strong growth trajectory.",
+    businessOverview: "",
+    financialAnalysis: { commentary: "Steady margins." },
+    valuation: { commentary: undefined },
+    recommendation: "Advance",
+    proposedTerms: "",
+  };
+  const memo = buildIcMemorandumInput(note, "legacy:deal-1", 2);
+  assert.equal(memo.dealId, "legacy:deal-1");
+  assert.equal(memo.memoVersion, 2);
+  assert.equal(memo.status, "draft");
+  assert.deepEqual(memo.sections, {
+    executiveSummary: "A solid opportunity.",
+    investmentThesis: "Strong growth trajectory.",
+    financialAnalysisCommentary: "Steady margins.",
+    recommendation: "Advance",
+  });
+  assert.ok(!("businessOverview" in memo.sections));
+  assert.ok(!("valuationCommentary" in memo.sections));
+  assert.ok(!("proposedTerms" in memo.sections));
 });

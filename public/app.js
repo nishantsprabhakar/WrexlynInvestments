@@ -44,6 +44,7 @@ function switchView(view) {
   if (view === "ic-decisions") loadICDecisionsTab();
   if (view === "captable-vc") loadCapTableTab();
   if (view === "portfolio") loadPortfolioTab();
+  if (view === "diligence") loadDiligenceTab();
 }
 document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => switchView(btn.dataset.view)));
 
@@ -564,9 +565,67 @@ async function loadDealPicker(selectId) {
 /* ---------- IC Decisions ---------- */
 async function loadICDecisionsTab() {
   await loadDealPicker("ic-deal");
+  await refreshICMemoranda();
   await refreshICDecisionsList();
+  await refreshMilestones();
 }
-document.getElementById("ic-deal").addEventListener("change", refreshICDecisionsList);
+document.getElementById("ic-deal").addEventListener("change", async () => {
+  await refreshICMemoranda();
+  await refreshICDecisionsList();
+  await refreshMilestones();
+});
+
+async function refreshICMemoranda() {
+  const dealId = document.getElementById("ic-deal").value;
+  const select = document.getElementById("ic-memo-select");
+  if (!dealId) {
+    select.innerHTML = '<option value="">None</option>';
+    document.getElementById("ic-memo-detail").innerHTML = "";
+    return;
+  }
+  try {
+    const { memoranda } = await apiFetch(`/api/ic-memoranda?dealId=${encodeURIComponent(dealId)}`);
+    select.innerHTML =
+      '<option value="">None</option>' +
+      memoranda
+        .slice()
+        .sort((a, b) => b.memoVersion - a.memoVersion)
+        .map((m) => `<option value="${m.id}">v${m.memoVersion} — ${escHtml(m.status)}</option>`)
+        .join("");
+    renderMemoDetail(memoranda.find((m) => m.id === select.value));
+  } catch (e) {
+    document.getElementById("ic-memo-detail").innerHTML = errorHtml(e.message);
+  }
+}
+document.getElementById("ic-memo-select").addEventListener("change", async () => {
+  const dealId = document.getElementById("ic-deal").value;
+  if (!dealId) return;
+  const { memoranda } = await apiFetch(`/api/ic-memoranda?dealId=${encodeURIComponent(dealId)}`);
+  renderMemoDetail(memoranda.find((m) => m.id === document.getElementById("ic-memo-select").value));
+});
+function renderMemoDetail(memo) {
+  const el = document.getElementById("ic-memo-detail");
+  if (!memo) {
+    el.innerHTML = "";
+    return;
+  }
+  const sections = Object.entries(memo.sections || {})
+    .map(([key, text]) => `<div class="section-label">${escHtml(key.replace(/([A-Z])/g, " $1"))}</div><p class="sub">${escHtml(text)}</p>`)
+    .join("");
+  el.innerHTML = sections || '<p class="sub">No sections recorded.</p>';
+}
+
+document.getElementById("ic-decision").addEventListener("change", () => {
+  document.getElementById("ic-conditions-field").style.display = document.getElementById("ic-decision").value === "approve_with_conditions" ? "" : "none";
+});
+document.getElementById("ic-add-condition-btn").addEventListener("click", () => {
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:8px;margin-bottom:8px";
+  row.innerHTML = `<input type="text" class="ic-condition-input" placeholder="Condition to satisfy…" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-soft);color:var(--text);padding:7px 10px;font-size:12.5px"/><button class="btn btn-danger btn-sm ic-remove-condition" type="button">✕</button>`;
+  document.getElementById("ic-conditions-rows").appendChild(row);
+  row.querySelector(".ic-remove-condition").addEventListener("click", () => row.remove());
+});
+
 async function refreshICDecisionsList() {
   const dealId = document.getElementById("ic-deal").value;
   if (!dealId) {
@@ -585,15 +644,42 @@ function renderICDecisionsList(decisions) {
     decisions
       .slice()
       .sort((a, b) => b.decidedAt - a.decidedAt)
-      .map(
-        (d) => `<div class="artifact-row">
+      .map((d) => {
+        const conditions =
+          (d.conditions || [])
+            .map(
+              (c) =>
+                `<div class="artifact-row"><span><span class="badge badge-${c.status === "open" ? "neutral" : "success"}">${escHtml(c.status)}</span> ${escHtml(c.condition)}</span>${
+                  c.status === "open"
+                    ? `<span><button class="btn btn-sm ic-resolve-condition" type="button" data-condition-id="${c.id}" data-resolve="satisfied">Satisfied</button> <button class="btn btn-sm ic-resolve-condition" type="button" data-condition-id="${c.id}" data-resolve="waived">Waived</button></span>`
+                    : ""
+                }</div>`
+            )
+            .join("") || "";
+        return `<div class="artifact-row">
         <span><span class="badge badge-neutral">${escHtml(d.decision.replace(/_/g, " "))}</span> decided by ${escHtml((d.decidedBy || []).join(", "))}</span>
         <span>${escHtml(new Date(d.decidedAt).toLocaleDateString())}</span>
       </div>
-      ${d.rationale ? `<div class="sub" style="margin:2px 0 10px">${escHtml(d.rationale)}</div>` : ""}`
-      )
+      ${d.rationale ? `<div class="sub" style="margin:2px 0 10px">${escHtml(d.rationale)}</div>` : ""}
+      ${conditions}`;
+      })
       .join("") || '<div class="pipe-empty">No decisions recorded yet.</div>';
   document.getElementById("ic-decisions-result").innerHTML = `<div class="panel"><div class="panel-title">Decision History</div>${rows}</div>`;
+
+  document.querySelectorAll(".ic-resolve-condition").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await apiFetch(`/api/approval-conditions?id=${encodeURIComponent(btn.dataset.conditionId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: btn.dataset.resolve }),
+        });
+        await refreshICDecisionsList();
+      } catch (e) {
+        document.getElementById("ic-decisions-result").innerHTML += errorHtml(e.message);
+      }
+    });
+  });
 }
 document.getElementById("ic-record-btn").addEventListener("click", async () => {
   const dealId = document.getElementById("ic-deal").value;
@@ -605,21 +691,89 @@ document.getElementById("ic-record-btn").addEventListener("click", async () => {
     .map((s) => s.trim())
     .filter(Boolean);
   const rationale = document.getElementById("ic-rationale").value.trim();
+  const icMemorandumId = document.getElementById("ic-memo-select").value || undefined;
+  const conditions = Array.from(document.querySelectorAll(".ic-condition-input"))
+    .map((i) => i.value.trim())
+    .filter(Boolean);
   const btn = document.getElementById("ic-record-btn");
   btn.disabled = true;
   try {
     await apiFetch("/api/ic-decisions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dealId, decision, decidedBy, rationale }),
+      body: JSON.stringify({ dealId, decision, decidedBy, rationale, icMemorandumId, conditions }),
     });
     document.getElementById("ic-decided-by").value = "";
     document.getElementById("ic-rationale").value = "";
+    document.getElementById("ic-conditions-rows").innerHTML = "";
+    await refreshICMemoranda();
     await refreshICDecisionsList();
   } catch (e) {
     document.getElementById("ic-decisions-result").innerHTML = errorHtml(e.message);
   } finally {
     btn.disabled = false;
+  }
+});
+
+/* ---------- Transaction Milestones ---------- */
+async function refreshMilestones() {
+  const dealId = document.getElementById("ic-deal").value;
+  if (!dealId) {
+    document.getElementById("ms-list").innerHTML = "";
+    return;
+  }
+  try {
+    const { milestones } = await apiFetch(`/api/milestones?dealId=${encodeURIComponent(dealId)}`);
+    renderMilestones(milestones);
+  } catch (e) {
+    document.getElementById("ms-list").innerHTML = errorHtml(e.message);
+  }
+}
+function renderMilestones(milestones) {
+  const html =
+    milestones
+      .map((m) => {
+        const statusClass = m.status === "complete" ? "success" : m.status === "at_risk" ? "high" : "neutral";
+        const actions =
+          m.status !== "complete"
+            ? `<button class="btn btn-sm ms-set-status" type="button" data-id="${m.id}" data-status="complete">Mark Complete</button> <button class="btn btn-sm ms-set-status" type="button" data-id="${m.id}" data-status="at_risk">Mark At Risk</button>`
+            : "";
+        return `<div class="artifact-row">
+          <span><span class="badge badge-${statusClass}">${escHtml(m.status.replace(/_/g, " "))}</span> ${escHtml(m.milestone.replace(/_/g, " "))}${m.targetDate ? " · target " + escHtml(m.targetDate) : ""}${m.actualDate ? " · actual " + escHtml(m.actualDate) : ""}</span>
+          <span>${actions}</span>
+        </div>`;
+      })
+      .join("") || '<div class="pipe-empty">No milestones tracked yet.</div>';
+  document.getElementById("ms-list").innerHTML = html;
+  document.querySelectorAll(".ms-set-status").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      try {
+        await apiFetch(`/api/milestones?id=${encodeURIComponent(btn.dataset.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: btn.dataset.status }),
+        });
+        await refreshMilestones();
+      } catch (e) {
+        document.getElementById("ms-list").innerHTML += errorHtml(e.message);
+      }
+    });
+  });
+}
+document.getElementById("ms-add-btn").addEventListener("click", async () => {
+  const dealId = document.getElementById("ic-deal").value;
+  if (!dealId) return;
+  const milestone = document.getElementById("ms-type").value;
+  const targetDate = document.getElementById("ms-target-date").value || undefined;
+  try {
+    await apiFetch("/api/milestones", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId, milestone, targetDate }),
+    });
+    await refreshMilestones();
+  } catch (e) {
+    document.getElementById("ms-list").innerHTML = errorHtml(e.message);
   }
 });
 
@@ -997,6 +1151,126 @@ function renderPortfolioDetail({ investment, kpis, followOnDecisions, exitScenar
     } catch (e) {
       document.getElementById("pf-detail").innerHTML += errorHtml(e.message);
     }
+  });
+}
+
+/* ---------- Diligence ---------- */
+async function loadDiligenceTab() {
+  await loadDealPicker("dl-deal");
+  await refreshDiligence();
+}
+document.getElementById("dl-deal").addEventListener("change", refreshDiligence);
+
+async function refreshDiligence() {
+  const dealId = document.getElementById("dl-deal").value;
+  if (!dealId) {
+    document.getElementById("dl-workstreams").innerHTML = "";
+    return;
+  }
+  try {
+    const { workstreams } = await apiFetch(`/api/diligence?dealId=${encodeURIComponent(dealId)}`);
+    renderDiligenceWorkstreams(workstreams);
+  } catch (e) {
+    document.getElementById("dl-workstreams").innerHTML = errorHtml(e.message);
+  }
+}
+
+document.getElementById("dl-add-ws-btn").addEventListener("click", async () => {
+  const dealId = document.getElementById("dl-deal").value;
+  const name = document.getElementById("dl-ws-name").value.trim();
+  if (!dealId || !name) return;
+  const owner = document.getElementById("dl-ws-owner").value.trim();
+  const btn = document.getElementById("dl-add-ws-btn");
+  btn.disabled = true;
+  try {
+    await apiFetch("/api/diligence/workstreams", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId, name, owner: owner || undefined }),
+    });
+    document.getElementById("dl-ws-name").value = "";
+    document.getElementById("dl-ws-owner").value = "";
+    await refreshDiligence();
+  } catch (e) {
+    document.getElementById("dl-workstreams").innerHTML = errorHtml(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function renderDiligenceWorkstreams(workstreams) {
+  const html = workstreams
+    .map((w) => {
+      const requestRows =
+        (w.requests || [])
+          .map((r) => {
+            if (r.status === "answered") {
+              return `<div class="artifact-row"><span><span class="badge badge-success">answered</span> ${escHtml(r.question)}</span></div><div class="sub" style="margin:2px 0 10px">${escHtml(r.response || "")}</div>`;
+            }
+            return `<div class="artifact-row" data-request-id="${r.id}">
+              <span><span class="badge badge-neutral">${escHtml(r.status)}</span> ${escHtml(r.question)}</span>
+            </div>
+            <div style="display:flex;gap:8px;margin:4px 0 10px">
+              <input type="text" class="dl-answer-input" placeholder="Response…" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-soft);color:var(--text);padding:7px 10px;font-size:12.5px"/>
+              <button class="btn btn-sm dl-answer-btn" type="button" data-request-id="${r.id}">Answer</button>
+            </div>`;
+          })
+          .join("") || '<div class="pipe-empty">No requests yet.</div>';
+
+      return `<div class="panel" data-workstream-id="${w.id}">
+        <div class="panel-title">${escHtml(w.name)}${w.owner ? " · " + escHtml(w.owner) : ""} <span class="badge badge-neutral">${escHtml(w.status.replace(/_/g, " "))}</span></div>
+        ${requestRows}
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" class="dl-new-question" placeholder="New request/question…" style="flex:1;background:var(--bg-elevated);border:1px solid var(--border-soft);color:var(--text);padding:7px 10px;font-size:12.5px"/>
+          <button class="btn btn-sm dl-add-request-btn" type="button" data-workstream-id="${w.id}">+ Add Request</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+  document.getElementById("dl-workstreams").innerHTML = html || '<div class="panel"><div class="pipe-empty">No workstreams yet.</div></div>';
+
+  document.querySelectorAll(".dl-add-request-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const workstreamId = btn.dataset.workstreamId;
+      const input = btn.closest(".panel").querySelector(".dl-new-question");
+      const question = input.value.trim();
+      if (!question) return;
+      btn.disabled = true;
+      try {
+        await apiFetch("/api/diligence/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workstreamId, question }),
+        });
+        await refreshDiligence();
+      } catch (e) {
+        document.getElementById("dl-workstreams").innerHTML += errorHtml(e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  document.querySelectorAll(".dl-answer-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const requestId = btn.dataset.requestId;
+      const input = btn.parentElement.querySelector(".dl-answer-input");
+      const response = input.value.trim();
+      if (!response) return;
+      btn.disabled = true;
+      try {
+        await apiFetch(`/api/diligence/requests?id=${encodeURIComponent(requestId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ response }),
+        });
+        await refreshDiligence();
+      } catch (e) {
+        document.getElementById("dl-workstreams").innerHTML += errorHtml(e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
   });
 }
 
