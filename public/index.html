@@ -1,3 +1,7 @@
+<!--
+  Wrexlyn for Investments — Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+  Unauthorized copying, modification, or distribution is prohibited. See LICENSE for details.
+-->
 <!doctype html>
 <html lang="en">
 <head>
@@ -27,14 +31,19 @@
     <span class="brand-sub">PE Intelligence Terminal</span>
   </div>
   <nav class="tabs">
-    <button class="tab-btn active" data-view="screening">Screening</button>
-    <button class="tab-btn" data-view="evaluation">Evaluation</button>
-    <button class="tab-btn" data-view="documentation">Documentation</button>
-    <button class="tab-btn" data-view="pipeline">Pipeline</button>
-    <button class="tab-btn" data-view="ic-decisions">IC Decisions</button>
-    <button class="tab-btn" data-view="captable-vc">Cap Table / VC</button>
-    <button class="tab-btn" data-view="portfolio">Portfolio</button>
+    <button class="tab-btn active" data-view="pipeline">Pipeline</button>
+    <span class="tab-divider"></span>
+    <button class="tab-btn" data-view="screening">Screening</button>
     <button class="tab-btn" data-view="diligence">Diligence</button>
+    <button class="tab-btn" data-view="evaluation">Evaluation</button>
+    <button class="tab-btn" data-view="valuation">Valuation</button>
+    <button class="tab-btn" data-view="captable-vc">Cap Table</button>
+    <button class="tab-btn" data-view="ic-decisions">IC Decisions</button>
+    <button class="tab-btn" data-view="documentation">Documentation</button>
+    <span class="tab-divider"></span>
+    <button class="tab-btn" data-view="portfolio">Portfolio</button>
+    <span class="tab-divider"></span>
+    <button class="tab-btn" data-view="fund-team">Fund &amp; Team</button>
   </nav>
   <div class="top-right">
     <span class="status-chip"><span class="status-dot"></span> LIVE</span>
@@ -43,8 +52,13 @@
   </div>
 </header>
 
+<!-- PIPELINE -->
+<main class="view active" id="view-pipeline">
+  <div id="pipeline-content"></div>
+</main>
+
 <!-- SCREENING -->
-<main class="view active" id="view-screening">
+<main class="view" id="view-screening">
   <div class="panel">
     <div class="panel-title">Flow 1 · Initial Screening</div>
     <h2>Screen a company</h2>
@@ -65,6 +79,23 @@
     </div>
   </div>
   <div id="screening-result"></div>
+</main>
+
+<!-- DILIGENCE -->
+<main class="view" id="view-diligence">
+  <div class="panel">
+    <div class="panel-title">Diligence Command Centre</div>
+    <h2>Diligence workstreams</h2>
+    <p class="sub">Track structured due-diligence work by workstream (Commercial, Financial, Legal, Tech) and its individual data-room requests.</p>
+    <div class="two-col">
+      <div class="field"><label>Deal</label><select id="dl-deal"></select></div>
+      <div class="field"><label>Workstream name</label><input type="text" id="dl-ws-name" placeholder="e.g. Legal"/></div>
+    </div>
+    <div class="field"><label>Owner (optional)</label><input type="text" id="dl-ws-owner"/></div>
+    <button class="btn btn-primary" id="dl-add-ws-btn">Add Workstream</button>
+  </div>
+
+  <div id="dl-workstreams"></div>
 </main>
 
 <!-- EVALUATION -->
@@ -101,33 +132,107 @@
   <div id="evaluation-result"></div>
 </main>
 
-<!-- DOCUMENTATION -->
-<main class="view" id="view-documentation">
+<!-- VALUATION -->
+<main class="view" id="view-valuation">
   <div class="panel">
-    <div class="panel-title">Flow 3 · Documentation Review</div>
-    <h2>Review company documents</h2>
-    <p class="sub">Upload any company-related document — legal, financial statements, compliance, litigation. Each is reviewed for risk; a real tracked-change redline is attempted on flagged clauses in uploaded .docx files.</p>
-    <div class="field">
-      <label>Company / deal name (optional)</label>
-      <input type="text" id="doc-company" placeholder="Links this review to a pipeline deal"/>
+    <div class="panel-title">Valuation Cases</div>
+    <h2>Valuation</h2>
+    <p class="sub">DCF and ARR-multiple cases are computed deterministically from the inputs below. Other methods record a human-entered implied value — Wrexlyn never fabricates a comps or precedent-transaction figure it has no data source for.</p>
+    <div class="field"><label>Deal</label><select id="val-deal"></select></div>
+    <div class="field"><label>Method</label>
+      <select id="val-method">
+        <option value="dcf">DCF</option>
+        <option value="arr_multiple">ARR Multiple</option>
+        <option value="comps">Comparable Companies</option>
+        <option value="precedent_transactions">Precedent Transactions</option>
+        <option value="lbo_implied">LBO-Implied</option>
+        <option value="other">Other</option>
+      </select>
     </div>
-    <div class="upload-zone" id="doc-files-zone">
-      <input type="file" id="doc-files-input" accept=".pdf,.docx,.doc,.txt" multiple/>
-      <div class="uz-icon">⎙</div>
-      <div class="uz-label">Documents (one or more)</div>
-      <div class="uz-sub">PDF, DOCX, or TXT</div>
-      <div class="uz-file" id="doc-files-list"></div>
+
+    <div id="val-fields-dcf">
+      <div class="field"><label>Cash flows ($M, comma-separated)</label><input type="text" id="val-cashflows" placeholder="e.g. 10, 12, 14, 16, 18"/></div>
+      <div class="two-col">
+        <div class="field"><label>Discount rate (%)</label><input type="number" id="val-discount-rate" step="0.1"/></div>
+        <div class="field"><label>Perpetual growth rate (%, optional)</label><input type="number" id="val-growth-rate" step="0.1"/></div>
+      </div>
     </div>
-    <div style="margin-top:16px">
-      <button class="btn btn-primary" id="doc-run-btn" disabled>Review Documents</button>
+
+    <div id="val-fields-arr" style="display:none">
+      <div class="two-col">
+        <div class="field"><label>Metric value ($M ARR)</label><input type="number" id="val-metric-value" step="0.1"/></div>
+        <div class="field"><label>Multiple (x)</label><input type="number" id="val-multiple" step="0.1"/></div>
+      </div>
     </div>
+
+    <div id="val-fields-manual" style="display:none">
+      <div class="field"><label>Implied value ($M)</label><input type="number" id="val-implied-value" step="0.1"/></div>
+    </div>
+
+    <div class="field"><label>Notes (optional)</label><textarea class="notes-box" id="val-notes"></textarea></div>
+    <button class="btn btn-primary" id="val-add-btn">Add Valuation Case</button>
   </div>
-  <div id="documentation-result"></div>
+
+  <div class="panel">
+    <div class="panel-title">Saved Cases</div>
+    <div id="val-cases-list"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Debt Facilities</div>
+    <p class="sub">Scoped to the deal's most recent capital structure. Evaluation runs create a Term Loan A automatically from the disclosed debt figure — add further tranches here.</p>
+    <div id="val-capstruct-hint" class="hint"></div>
+    <div class="two-col">
+      <div class="field"><label>Facility name</label><input type="text" id="df-name" placeholder="e.g. Term Loan B"/></div>
+      <div class="field"><label>Type</label>
+        <select id="df-type">
+          <option value="term_loan_a">Term Loan A</option>
+          <option value="term_loan_b">Term Loan B</option>
+          <option value="revolver">Revolver</option>
+          <option value="subordinated">Subordinated</option>
+          <option value="mezzanine">Mezzanine</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Principal ($M)</label><input type="number" id="df-principal" step="0.1"/></div>
+      <div class="field"><label>Interest rate description (optional)</label><input type="text" id="df-rate" placeholder="e.g. SOFR + 500bps"/></div>
+    </div>
+    <div class="field"><label>Maturity date (optional)</label><input type="date" id="df-maturity"/></div>
+    <button class="btn btn-sm" id="df-add-btn" type="button">+ Add Debt Facility</button>
+    <div id="df-list" style="margin-top:12px"></div>
+  </div>
 </main>
 
-<!-- PIPELINE -->
-<main class="view" id="view-pipeline">
-  <div id="pipeline-content"></div>
+<!-- CAP TABLE / VC -->
+<main class="view" id="view-captable-vc">
+  <div class="panel">
+    <div class="panel-title">VC · Cap Table</div>
+    <h2>Cap table</h2>
+    <p class="sub">Save a company's current cap table (rows must sum to 100% ownership), or model a new priced round below before committing to it.</p>
+    <div class="two-col">
+      <div class="field"><label>Deal</label><select id="ct-deal"></select></div>
+      <div class="field"><label>As of date</label><input type="date" id="ct-asof"/></div>
+    </div>
+    <div id="ct-rows"></div>
+    <button class="btn btn-sm" id="ct-add-row" style="margin-top:8px" type="button">+ Add Row</button>
+    <div style="margin-top:16px">
+      <button class="btn btn-primary" id="ct-save-btn">Save Cap Table</button>
+      <span class="hint" id="ct-sum-hint"></span>
+    </div>
+  </div>
+  <div id="captable-result"></div>
+
+  <div class="panel" style="margin-top:20px">
+    <div class="panel-title">Model a New Round</div>
+    <div class="two-col">
+      <div class="field"><label>Pre-money valuation ($M)</label><input type="number" id="dil-premoney" step="0.1"/></div>
+      <div class="field"><label>New investment ($M)</label><input type="number" id="dil-investment" step="0.1"/></div>
+    </div>
+    <button class="btn btn-primary btn-sm" id="dil-run-btn" type="button">Model Dilution</button>
+    <div id="dilution-result" style="margin-top:12px"></div>
+  </div>
 </main>
 
 <!-- IC DECISIONS -->
@@ -187,34 +292,28 @@
   </div>
 </main>
 
-<!-- CAP TABLE / VC -->
-<main class="view" id="view-captable-vc">
+<!-- DOCUMENTATION -->
+<main class="view" id="view-documentation">
   <div class="panel">
-    <div class="panel-title">VC · Cap Table</div>
-    <h2>Cap table</h2>
-    <p class="sub">Save a company's current cap table (rows must sum to 100% ownership), or model a new priced round below before committing to it.</p>
-    <div class="two-col">
-      <div class="field"><label>Deal</label><select id="ct-deal"></select></div>
-      <div class="field"><label>As of date</label><input type="date" id="ct-asof"/></div>
+    <div class="panel-title">Flow 3 · Documentation Review</div>
+    <h2>Review company documents</h2>
+    <p class="sub">Upload any company-related document — legal, financial statements, compliance, litigation. Each is reviewed for risk; a real tracked-change redline is attempted on flagged clauses in uploaded .docx files.</p>
+    <div class="field">
+      <label>Company / deal name (optional)</label>
+      <input type="text" id="doc-company" placeholder="Links this review to a pipeline deal"/>
     </div>
-    <div id="ct-rows"></div>
-    <button class="btn btn-sm" id="ct-add-row" style="margin-top:8px" type="button">+ Add Row</button>
+    <div class="upload-zone" id="doc-files-zone">
+      <input type="file" id="doc-files-input" accept=".pdf,.docx,.doc,.txt" multiple/>
+      <div class="uz-icon">⎙</div>
+      <div class="uz-label">Documents (one or more)</div>
+      <div class="uz-sub">PDF, DOCX, or TXT</div>
+      <div class="uz-file" id="doc-files-list"></div>
+    </div>
     <div style="margin-top:16px">
-      <button class="btn btn-primary" id="ct-save-btn">Save Cap Table</button>
-      <span class="hint" id="ct-sum-hint"></span>
+      <button class="btn btn-primary" id="doc-run-btn" disabled>Review Documents</button>
     </div>
   </div>
-  <div id="captable-result"></div>
-
-  <div class="panel" style="margin-top:20px">
-    <div class="panel-title">Model a New Round</div>
-    <div class="two-col">
-      <div class="field"><label>Pre-money valuation ($M)</label><input type="number" id="dil-premoney" step="0.1"/></div>
-      <div class="field"><label>New investment ($M)</label><input type="number" id="dil-investment" step="0.1"/></div>
-    </div>
-    <button class="btn btn-primary btn-sm" id="dil-run-btn" type="button">Model Dilution</button>
-    <div id="dilution-result" style="margin-top:12px"></div>
-  </div>
+  <div id="documentation-result"></div>
 </main>
 
 <!-- PORTFOLIO -->
@@ -242,22 +341,101 @@
   <div id="pf-detail"></div>
 </main>
 
-<!-- DILIGENCE -->
-<main class="view" id="view-diligence">
+<!-- FUND & TEAM -->
+<main class="view" id="view-fund-team">
   <div class="panel">
-    <div class="panel-title">Diligence Command Centre</div>
-    <h2>Diligence workstreams</h2>
-    <p class="sub">Track structured due-diligence work by workstream (Commercial, Financial, Legal, Tech) and its individual data-room requests.</p>
+    <div class="panel-title">Contacts</div>
     <div class="two-col">
-      <div class="field"><label>Deal</label><select id="dl-deal"></select></div>
-      <div class="field"><label>Workstream name</label><input type="text" id="dl-ws-name" placeholder="e.g. Legal"/></div>
+      <div class="field"><label>Name</label><input type="text" id="ct-name"/></div>
+      <div class="field"><label>Role (optional)</label><input type="text" id="ct-role" placeholder="e.g. Founder, CFO, Legal Counsel"/></div>
     </div>
-    <div class="field"><label>Owner (optional)</label><input type="text" id="dl-ws-owner"/></div>
-    <button class="btn btn-primary" id="dl-add-ws-btn">Add Workstream</button>
+    <div class="two-col">
+      <div class="field"><label>Email (optional)</label><input type="text" id="ct-email"/></div>
+      <div class="field"><label>Phone (optional)</label><input type="text" id="ct-phone"/></div>
+    </div>
+    <button class="btn btn-primary btn-sm" id="ct-add-btn" type="button">Add Contact</button>
+    <div id="ct-list" style="margin-top:12px"></div>
   </div>
 
-  <div id="dl-workstreams"></div>
+  <div class="panel">
+    <div class="panel-title">Deal Team</div>
+    <div class="field"><label>Deal</label><select id="dt-deal"></select></div>
+    <div id="dt-members" style="margin:8px 0"></div>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Team member</label><select id="dt-contact-select"><option value="">— Free-text name below —</option></select></div>
+      <div class="field" style="margin:0"><label>Or name (if not a saved contact)</label><input type="text" id="dt-member-name"/></div>
+    </div>
+    <div class="field"><label>Role</label>
+      <select id="dt-member-role">
+        <option value="lead">Lead</option>
+        <option value="associate">Associate</option>
+        <option value="operating_partner">Operating Partner</option>
+        <option value="legal">Legal</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <button class="btn btn-sm" id="dt-add-member-btn" type="button">+ Add to Team</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Investment Vehicles</div>
+    <div class="field"><label>Strategy</label>
+      <select id="iv-strategy">
+        <option value="growth_equity">Growth Equity</option>
+        <option value="pe_buyout">PE Buyout</option>
+        <option value="vc">VC</option>
+      </select>
+    </div>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Vehicle name</label><input type="text" id="iv-name" placeholder="e.g. Co-Invest SPV I"/></div>
+      <div class="field" style="margin:0"><label>Type</label>
+        <select id="iv-type">
+          <option value="main_fund">Main Fund</option>
+          <option value="co_invest_spv">Co-Invest SPV</option>
+          <option value="continuation_vehicle">Continuation Vehicle</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-sm" id="iv-add-btn" type="button" style="margin-top:8px">+ Add Vehicle</button>
+    <div id="iv-list" style="margin-top:12px"></div>
+
+    <div class="section-label" style="margin-top:18px">Assign a Vehicle to a Deal</div>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Deal</label><select id="iv-assign-deal"></select></div>
+      <div class="field" style="margin:0"><label>Vehicle</label><select id="iv-assign-vehicle"></select></div>
+    </div>
+    <button class="btn btn-sm" id="iv-assign-btn" type="button" style="margin-top:8px">Assign</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Investment Mandate</div>
+    <div class="field"><label>Strategy</label>
+      <select id="im-strategy">
+        <option value="growth_equity">Growth Equity</option>
+        <option value="pe_buyout">PE Buyout</option>
+        <option value="vc">VC</option>
+      </select>
+    </div>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Sectors (comma-separated)</label><input type="text" id="im-sectors"/></div>
+      <div class="field" style="margin:0"><label>Geographies (comma-separated)</label><input type="text" id="im-geographies"/></div>
+    </div>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Check size min ($M)</label><input type="number" id="im-check-min" step="0.1"/></div>
+      <div class="field" style="margin:0"><label>Check size max ($M)</label><input type="number" id="im-check-max" step="0.1"/></div>
+    </div>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Ownership target (%)</label><input type="number" id="im-ownership" step="0.1"/></div>
+      <div class="field" style="margin:0"><label>Hold period (years, min-max)</label><input type="text" id="im-hold-period" placeholder="e.g. 4-7"/></div>
+    </div>
+    <button class="btn btn-sm" id="im-add-btn" type="button" style="margin-top:8px">+ Add Mandate</button>
+    <div id="im-list" style="margin-top:12px"></div>
+  </div>
 </main>
+
+<!-- Persistent across every tab (sits outside the .view blocks, so it's never toggled off). -->
+<footer class="app-footer">© 2026 Nishant Prabhakar. All rights reserved. Wrexlyn for Investments is proprietary software — see <a href="/LICENSE">LICENSE</a>.</footer>
 
 <!-- Add / edit deal modal -->
 <div class="overlay" id="deal-overlay">
@@ -295,6 +473,9 @@
 
       <div class="section-label">Saved artifacts</div>
       <div id="dm-artifacts"></div>
+
+      <div class="section-label">Audit trail</div>
+      <div id="dm-audit"></div>
 
       <div style="margin-top:18px;display:flex;justify-content:space-between">
         <button class="btn btn-danger btn-sm" id="dm-delete">Delete Deal</button>

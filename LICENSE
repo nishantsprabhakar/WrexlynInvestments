@@ -1,0 +1,92 @@
+WREXLYN FOR INVESTMENTS PROPRIETARY SOURCE-AVAILABLE EVALUATION LICENSE
+Version 1.0 — 27 August 2026
+
+Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+
+1. OWNERSHIP
+
+Wrexlyn for Investments, including its source code, object code, documentation, user
+interfaces, brand assets, prompts, generated-document templates, examples, and original content
+(the "Software"), is proprietary to Nishant Prabhakar (the "Licensor"). Source visibility is not
+open-source status and grants no rights except the limited permission expressly stated below.
+
+2. LIMITED EVALUATION PERMISSION
+
+Subject to continuous compliance with this License, the Terms of Service, and the Acceptable Use
+Policy, the Licensor grants an individual a personal, limited, revocable, non-exclusive,
+non-transferable, non-sublicensable permission to install and run one unmodified copy of the
+Software solely for private, non-commercial evaluation. This permission creates no sale or
+transfer of title. The Licensor may revoke it at any time to the extent permitted by law.
+
+3. NO OTHER RIGHTS
+
+Without the Licensor's prior express written agreement, you must not, directly or indirectly:
+
+(a) copy the Software except for one necessary installation and one private backup;
+(b) modify, adapt, translate, create derivative works from, or remove notices from it;
+(c) publish, redistribute, transmit, sublicense, sell, rent, lease, lend, host,
+    provide as a service, or make it available to another person;
+(d) use it for commercial, professional, employment, revenue-generating, production,
+    competitive-analysis, benchmarking-for-publication, or regulated activity;
+(e) use the Software, its outputs, structure, or documentation to train, fine-tune,
+    evaluate, benchmark, distill, improve, or develop any model, agent, dataset,
+    competing product, or substantially similar functionality;
+(f) reverse engineer, decompile, disassemble, evade access controls, discover source
+    not already displayed, or derive protected methods except where applicable law
+    expressly prohibits this restriction;
+(g) use Wrexlyn names, logos, marks, trade dress, or confusingly similar identifiers;
+(h) represent affiliation, endorsement, certification, authorship, or ownership; or
+(i) help another person do anything prohibited by this License.
+
+No patent, trademark, trade-secret, publicity, data, model-training, commercial,
+hosting, distribution, or implied right is granted. All rights are reserved.
+
+4. THIRD-PARTY COMPONENTS
+
+Third-party components — including the Wrexlyn core LLM/document-generation backend this
+Software is built on, and any third-party LLM provider it connects to — remain governed by their
+own licenses and terms. This License applies only to original Wrexlyn for Investments material
+and does not restrict rights granted independently by a third-party license. See
+THIRD_PARTY_NOTICES.md and the dependency manifests.
+
+5. DEAL DATA AND CONFIDENTIALITY
+
+The Software is designed to ingest and generate highly confidential material — company decks,
+financial models, cap tables, diligence findings, investment committee decisions, and other
+non-public deal information ("Deal Data"). Deal Data belongs to you and/or the parties it
+concerns, not the Licensor. Nothing in this License grants the Licensor any right to Deal Data
+you process locally, and the Licensor has no access to, and does not receive, Deal Data merely
+by virtue of this License — see PRIVACY_POLICY.md for what the Software actually transmits and
+to whom (including third-party LLM providers you configure). You are solely responsible for
+determining whether processing any given item of Deal Data through this Software, or through any
+third-party LLM provider it connects to, is permitted under your confidentiality obligations,
+NDAs, fund documents, and applicable law.
+
+6. CONDITIONS AND TERMINATION
+
+The permission in Section 2 terminates automatically upon breach. On termination or written
+demand, you must stop use and delete all copies under your control, except records that law
+requires you to retain. Sections concerning ownership, restrictions, disclaimers, remedies, and
+liability survive. Unauthorized use may cause irreparable harm for which monetary damages are
+inadequate; the Licensor may seek injunctive or equitable relief in addition to other remedies,
+without limiting mandatory law.
+
+7. NO WARRANTY; LIABILITY
+
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE," WITHOUT WARRANTY OF ANY KIND, EXPRESS,
+IMPLIED, OR STATUTORY, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE,
+NON-INFRINGEMENT, SECURITY, ACCURACY, OR AVAILABILITY. THIS INCLUDES, WITHOUT LIMITATION, ANY
+SCREENING SCORE, GRADE, RECOMMENDATION, FINANCIAL CALCULATION, VALUATION, IC MEMORANDUM, RISK
+FLAG, OR OTHER OUTPUT THE SOFTWARE PRODUCES OR COMPUTES. TO THE MAXIMUM EXTENT PERMITTED BY LAW,
+THE LICENSOR AND PROTECTED PARTIES IDENTIFIED IN THE TERMS OF SERVICE WILL NOT BE LIABLE FOR
+CLAIMS OR DAMAGES ARISING FROM THE SOFTWARE OR ANY INVESTMENT, DIVESTMENT, OR OTHER DECISION MADE
+IN RELIANCE ON IT. THE TERMS OF SERVICE, INCLUDING RELEASE, INDEMNITY, AND LIABILITY LIMITS, ARE
+INCORPORATED HERE.
+
+8. COMMERCIAL RIGHTS
+
+Wrexlyn for Investments is available for commercial licensing. Commercial, organizational,
+redistribution, integration, OEM, hosted, or other rights require a separate written agreement
+signed by Nishant Prabhakar — contact Nishant Prabhakar directly to request one. Repository
+issues, pull requests, unsolicited emails, discussions, or silence do not grant permission, and
+no commercial right exists until that agreement is signed by both parties.

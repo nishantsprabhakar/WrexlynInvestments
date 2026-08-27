@@ -1,5 +1,8 @@
 /*
  * Wrexlyn for Investments — built on Wrexlyn's backend.
+ * Copyright (c) 2026 Nishant Prabhakar. All rights reserved.
+ * Unauthorized copying, modification, or distribution is prohibited.
+ * See LICENSE for details.
  * Vanilla JS SPA, no framework — matching Wrexlyn's own public/app.js
  * convention. Four tabs (Screening/Evaluation/Documentation/Pipeline) drive
  * four server-side flows over a small JSON REST API.
@@ -45,6 +48,8 @@ function switchView(view) {
   if (view === "captable-vc") loadCapTableTab();
   if (view === "portfolio") loadPortfolioTab();
   if (view === "diligence") loadDiligenceTab();
+  if (view === "fund-team") loadFundTeamTab();
+  if (view === "valuation") loadValuationTab();
 }
 document.querySelectorAll(".tab-btn").forEach((btn) => btn.addEventListener("click", () => switchView(btn.dataset.view)));
 
@@ -474,7 +479,7 @@ document.getElementById("nd-create").addEventListener("click", async () => {
 
 /* ---------- Deal workspace modal ---------- */
 let activeDealId = null;
-function openDealModal(id) {
+async function openDealModal(id) {
   const deal = pipelineData.deals.find((d) => d.id === id);
   if (!deal) return;
   activeDealId = id;
@@ -504,6 +509,21 @@ function openDealModal(id) {
   document.getElementById("dm-artifacts").innerHTML = artifacts.join("") || '<div class="pipe-empty">No analysis yet.</div>';
 
   document.getElementById("deal-overlay").classList.add("show");
+
+  const auditEl = document.getElementById("dm-audit");
+  auditEl.innerHTML = '<div class="pipe-empty">Loading…</div>';
+  const { entries } = await apiFetch(`/api/audit?dealId=${encodeURIComponent(id)}`);
+  auditEl.innerHTML =
+    (entries || [])
+      .slice()
+      .reverse()
+      .map((e) => {
+        const summary = Object.entries(e.outputSummary || {})
+          .map(([k, v]) => `${k}: ${typeof v === "object" && v !== null ? JSON.stringify(v) : v}`)
+          .join(", ");
+        return `<div class="artifact-row"><span><span class="badge badge-neutral">${escHtml(e.flow)}</span> ${escHtml(summary)}</span><span>${escHtml(new Date(e.createdAt).toLocaleString())}</span></div>`;
+      })
+      .join("") || '<div class="pipe-empty">No audit entries yet.</div>';
 }
 document.getElementById("deal-modal-close").addEventListener("click", () => document.getElementById("deal-overlay").classList.remove("show"));
 
@@ -977,7 +997,10 @@ async function loadPortfolioDetail(id) {
   }
 }
 
-function renderPortfolioDetail({ investment, kpis, followOnDecisions, exitScenarios, realisedProceeds }) {
+const VCI_NEXT_STATUS = { planned: "in_progress", in_progress: "complete" };
+const VCI_NEXT_LABEL = { planned: "Start", in_progress: "Complete" };
+
+function renderPortfolioDetail({ investment, kpis, followOnDecisions, exitScenarios, realisedProceeds, valueCreationInitiatives }) {
   const kpiRows =
     kpis.map((k) => `<tr><td>${escHtml(k.period)}</td><td>${escHtml(k.kpi)}</td><td class="num">${k.value}</td><td class="num">${k.targetValue ?? "—"}</td></tr>`).join("") ||
     '<tr><td colspan="4" class="pipe-empty">No KPIs recorded yet.</td></tr>';
@@ -1007,6 +1030,17 @@ function renderPortfolioDetail({ investment, kpis, followOnDecisions, exitScenar
       .join("") || '<tr><td colspan="5" class="pipe-empty">Not yet exited.</td></tr>';
 
   const exitRouteOptions = EXIT_ROUTES.map((r) => `<option value="${r}">${r.replace(/_/g, " ")}</option>`).join("");
+
+  const vciRows =
+    (valueCreationInitiatives || [])
+      .map((v) => {
+        const nextStatus = VCI_NEXT_STATUS[v.status];
+        const action = nextStatus
+          ? `<button class="btn btn-sm vci-action-btn" type="button" data-id="${v.id}" data-next-status="${nextStatus}">${VCI_NEXT_LABEL[v.status]}</button>`
+          : "";
+        return `<div class="artifact-row"><span><span class="badge badge-neutral">${escHtml(v.status.replace(/_/g, " "))}</span> ${escHtml(v.title)}${v.owner ? ` · ${escHtml(v.owner)}` : ""}${v.targetImpactM != null ? ` · $${v.targetImpactM}M target` : ""}</span><span>${action}</span></div>`;
+      })
+      .join("") || '<div class="pipe-empty">No value creation initiatives yet.</div>';
 
   document.getElementById("pf-detail").innerHTML = `
     <div class="panel">
@@ -1068,6 +1102,15 @@ function renderPortfolioDetail({ investment, kpis, followOnDecisions, exitScenar
         <div class="field" style="margin:0"><label>Net proceeds ($M, optional)</label><input type="number" id="pf-rp-net" step="0.1"/></div>
       </div>
       <button class="btn btn-primary btn-sm" id="pf-rp-add" type="button">Record Realised Exit</button>
+
+      <div class="section-label" style="margin-top:18px">Value Creation Initiatives</div>
+      ${vciRows}
+      <div class="two-col" style="margin-top:8px">
+        <div class="field" style="margin:0"><label>Title</label><input type="text" id="pf-vci-title" placeholder="e.g. Pricing optimization"/></div>
+        <div class="field" style="margin:0"><label>Owner (optional)</label><input type="text" id="pf-vci-owner"/></div>
+      </div>
+      <div class="field" style="margin:8px 0"><label>Target impact ($M, optional)</label><input type="number" id="pf-vci-target" step="0.1"/></div>
+      <button class="btn btn-sm" id="pf-vci-add" type="button">+ Add Initiative</button>
     </div>
   `;
 
@@ -1152,6 +1195,41 @@ function renderPortfolioDetail({ investment, kpis, followOnDecisions, exitScenar
       document.getElementById("pf-detail").innerHTML += errorHtml(e.message);
     }
   });
+
+  document.getElementById("pf-vci-add").addEventListener("click", async () => {
+    const title = document.getElementById("pf-vci-title").value.trim();
+    if (!title) return;
+    try {
+      await apiFetch("/api/portfolio/value-creation-initiatives", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          portfolioInvestmentId: activePortfolioInvestmentId,
+          title,
+          owner: document.getElementById("pf-vci-owner").value.trim() || undefined,
+          targetImpactM: document.getElementById("pf-vci-target").value ? parseFloat(document.getElementById("pf-vci-target").value) : undefined,
+        }),
+      });
+      await loadPortfolioDetail(activePortfolioInvestmentId);
+    } catch (e) {
+      document.getElementById("pf-detail").innerHTML += errorHtml(e.message);
+    }
+  });
+
+  document.querySelectorAll(".vci-action-btn").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      try {
+        await apiFetch(`/api/portfolio/value-creation-initiatives?id=${encodeURIComponent(btn.dataset.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: btn.dataset.nextStatus }),
+        });
+        await loadPortfolioDetail(activePortfolioInvestmentId);
+      } catch (e) {
+        document.getElementById("pf-detail").innerHTML += errorHtml(e.message);
+      }
+    })
+  );
 }
 
 /* ---------- Diligence ---------- */
@@ -1274,6 +1352,222 @@ function renderDiligenceWorkstreams(workstreams) {
   });
 }
 
+/* ---------- Fund & Team ---------- */
+let cachedContacts = [];
+
+async function loadFundTeamTab() {
+  await refreshContacts();
+  await loadDealPicker("dt-deal");
+  await loadDealPicker("iv-assign-deal");
+  await refreshDealTeam();
+  await refreshVehicles();
+  await refreshMandates();
+}
+
+async function refreshContacts() {
+  try {
+    const { contacts } = await apiFetch("/api/contacts");
+    cachedContacts = contacts;
+    renderContacts(contacts);
+    document.getElementById("dt-contact-select").innerHTML =
+      '<option value="">— Free-text name below —</option>' +
+      contacts.map((c) => `<option value="${c.id}">${escHtml(c.name)}${c.role ? " (" + escHtml(c.role) + ")" : ""}</option>`).join("");
+  } catch (e) {
+    document.getElementById("ct-list").innerHTML = errorHtml(e.message);
+  }
+}
+function renderContacts(contacts) {
+  const rows =
+    contacts
+      .map(
+        (c) =>
+          `<div class="artifact-row"><span><strong>${escHtml(c.name)}</strong>${c.role ? " · " + escHtml(c.role) : ""}</span><span class="sub" style="margin:0">${escHtml(c.email || "")}${c.email && c.phone ? " · " : ""}${escHtml(c.phone || "")}</span></div>`
+      )
+      .join("") || '<div class="pipe-empty">No contacts yet.</div>';
+  document.getElementById("ct-list").innerHTML = rows;
+}
+document.getElementById("ct-add-btn").addEventListener("click", async () => {
+  const name = document.getElementById("ct-name").value.trim();
+  if (!name) return;
+  try {
+    await apiFetch("/api/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        role: document.getElementById("ct-role").value.trim() || undefined,
+        email: document.getElementById("ct-email").value.trim() || undefined,
+        phone: document.getElementById("ct-phone").value.trim() || undefined,
+      }),
+    });
+    document.getElementById("ct-name").value = "";
+    document.getElementById("ct-role").value = "";
+    document.getElementById("ct-email").value = "";
+    document.getElementById("ct-phone").value = "";
+    await refreshContacts();
+  } catch (e) {
+    document.getElementById("ct-list").innerHTML = errorHtml(e.message);
+  }
+});
+
+document.getElementById("dt-deal").addEventListener("change", refreshDealTeam);
+async function refreshDealTeam() {
+  const dealId = document.getElementById("dt-deal").value;
+  if (!dealId) {
+    document.getElementById("dt-members").innerHTML = "";
+    return;
+  }
+  try {
+    const { team } = await apiFetch(`/api/deal-teams?dealId=${encodeURIComponent(dealId)}`);
+    renderDealTeam(team);
+  } catch (e) {
+    document.getElementById("dt-members").innerHTML = errorHtml(e.message);
+  }
+}
+function contactName(contactId) {
+  const c = cachedContacts.find((x) => x.id === contactId);
+  return c ? c.name : "(unknown contact)";
+}
+function renderDealTeam(team) {
+  const members = team?.members || [];
+  const rows =
+    members
+      .map(
+        (m) =>
+          `<div class="artifact-row"><span><span class="badge badge-neutral">${escHtml(m.role.replace(/_/g, " "))}</span> ${escHtml(m.contactId ? contactName(m.contactId) : m.name || "")}</span></div>`
+      )
+      .join("") || '<div class="pipe-empty">No team members assigned yet.</div>';
+  document.getElementById("dt-members").innerHTML = rows;
+}
+document.getElementById("dt-add-member-btn").addEventListener("click", async () => {
+  const dealId = document.getElementById("dt-deal").value;
+  if (!dealId) return;
+  const contactId = document.getElementById("dt-contact-select").value || undefined;
+  const name = document.getElementById("dt-member-name").value.trim() || undefined;
+  const role = document.getElementById("dt-member-role").value;
+  if (!contactId && !name) return;
+  try {
+    const { team } = await apiFetch(`/api/deal-teams?dealId=${encodeURIComponent(dealId)}`);
+    const members = [...(team?.members || []), { contactId, name, role }];
+    await apiFetch("/api/deal-teams", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId, members }),
+    });
+    document.getElementById("dt-member-name").value = "";
+    document.getElementById("dt-contact-select").value = "";
+    await refreshDealTeam();
+  } catch (e) {
+    document.getElementById("dt-members").innerHTML = errorHtml(e.message);
+  }
+});
+
+document.getElementById("iv-strategy").addEventListener("change", refreshVehicles);
+async function refreshVehicles() {
+  const strategy = document.getElementById("iv-strategy").value;
+  try {
+    const { vehicles } = await apiFetch(`/api/investment-vehicles?strategy=${encodeURIComponent(strategy)}`);
+    renderVehicles(vehicles);
+    document.getElementById("iv-assign-vehicle").innerHTML = vehicles.map((v) => `<option value="${v.id}">${escHtml(v.name)} (${escHtml(v.vehicleType.replace(/_/g, " "))})</option>`).join("");
+  } catch (e) {
+    document.getElementById("iv-list").innerHTML = errorHtml(e.message);
+  }
+}
+function renderVehicles(vehicles) {
+  const rows =
+    vehicles
+      .map((v) => `<div class="artifact-row"><span><span class="badge badge-neutral">${escHtml(v.vehicleType.replace(/_/g, " "))}</span> ${escHtml(v.name)}</span></div>`)
+      .join("") || '<div class="pipe-empty">No vehicles for this strategy yet.</div>';
+  document.getElementById("iv-list").innerHTML = rows;
+}
+document.getElementById("iv-add-btn").addEventListener("click", async () => {
+  const strategy = document.getElementById("iv-strategy").value;
+  const name = document.getElementById("iv-name").value.trim();
+  if (!name) return;
+  try {
+    await apiFetch("/api/investment-vehicles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ strategy, name, vehicleType: document.getElementById("iv-type").value }),
+    });
+    document.getElementById("iv-name").value = "";
+    await refreshVehicles();
+  } catch (e) {
+    document.getElementById("iv-list").innerHTML = errorHtml(e.message);
+  }
+});
+document.getElementById("iv-assign-btn").addEventListener("click", async () => {
+  const dealId = document.getElementById("iv-assign-deal").value;
+  const vehicleId = document.getElementById("iv-assign-vehicle").value;
+  if (!dealId || !vehicleId) return;
+  try {
+    await apiFetch("/api/deals/vehicle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dealId, vehicleId }),
+    });
+  } catch (e) {
+    document.getElementById("iv-list").innerHTML += errorHtml(e.message);
+  }
+});
+
+document.getElementById("im-strategy").addEventListener("change", refreshMandates);
+async function refreshMandates() {
+  const strategy = document.getElementById("im-strategy").value;
+  try {
+    const { mandates } = await apiFetch(`/api/investment-mandates?strategy=${encodeURIComponent(strategy)}`);
+    renderMandates(mandates);
+  } catch (e) {
+    document.getElementById("im-list").innerHTML = errorHtml(e.message);
+  }
+}
+function renderMandates(mandates) {
+  const rows =
+    mandates
+      .map((m) => {
+        const parts = [];
+        if (m.sectors?.length) parts.push(m.sectors.join(", "));
+        if (m.geographies?.length) parts.push(m.geographies.join(", "));
+        if (m.checkSizeMinM != null || m.checkSizeMaxM != null) parts.push(`$${m.checkSizeMinM ?? "?"}M–$${m.checkSizeMaxM ?? "?"}M`);
+        if (m.ownershipTargetPct != null) parts.push(`${m.ownershipTargetPct}% ownership target`);
+        if (m.holdPeriodYearsMin != null || m.holdPeriodYearsMax != null) parts.push(`${m.holdPeriodYearsMin ?? "?"}–${m.holdPeriodYearsMax ?? "?"}y hold`);
+        return `<div class="artifact-row"><span>${escHtml(parts.join(" · ") || "No details recorded")}</span></div>`;
+      })
+      .join("") || '<div class="pipe-empty">No mandate recorded for this strategy yet.</div>';
+  document.getElementById("im-list").innerHTML = rows;
+}
+document.getElementById("im-add-btn").addEventListener("click", async () => {
+  const strategy = document.getElementById("im-strategy").value;
+  const sectors = document.getElementById("im-sectors").value.split(",").map((s) => s.trim()).filter(Boolean);
+  const geographies = document.getElementById("im-geographies").value.split(",").map((s) => s.trim()).filter(Boolean);
+  const checkSizeMinM = document.getElementById("im-check-min").value ? parseFloat(document.getElementById("im-check-min").value) : undefined;
+  const checkSizeMaxM = document.getElementById("im-check-max").value ? parseFloat(document.getElementById("im-check-max").value) : undefined;
+  const ownershipTargetPct = document.getElementById("im-ownership").value ? parseFloat(document.getElementById("im-ownership").value) : undefined;
+  const holdPeriodRaw = document.getElementById("im-hold-period").value.trim();
+  let holdPeriodYearsMin, holdPeriodYearsMax;
+  if (holdPeriodRaw.includes("-")) {
+    const [minStr, maxStr] = holdPeriodRaw.split("-");
+    holdPeriodYearsMin = parseFloat(minStr) || undefined;
+    holdPeriodYearsMax = parseFloat(maxStr) || undefined;
+  }
+  try {
+    await apiFetch("/api/investment-mandates", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ strategy, sectors, geographies, checkSizeMinM, checkSizeMaxM, ownershipTargetPct, holdPeriodYearsMin, holdPeriodYearsMax }),
+    });
+    document.getElementById("im-sectors").value = "";
+    document.getElementById("im-geographies").value = "";
+    document.getElementById("im-check-min").value = "";
+    document.getElementById("im-check-max").value = "";
+    document.getElementById("im-ownership").value = "";
+    document.getElementById("im-hold-period").value = "";
+    await refreshMandates();
+  } catch (e) {
+    document.getElementById("im-list").innerHTML = errorHtml(e.message);
+  }
+});
+
 /* ---------- Settings modal ---------- */
 document.getElementById("settings-btn").addEventListener("click", openSettings);
 document.getElementById("settings-close").addEventListener("click", () => document.getElementById("settings-overlay").classList.remove("show"));
@@ -1358,4 +1652,148 @@ document.querySelectorAll(".overlay").forEach((ov) => {
   ov.addEventListener("click", (e) => {
     if (e.target === ov) ov.classList.remove("show");
   });
+});
+
+/* ---------- initial view: the deal pipeline is the fund's command center, not a single-company form ---------- */
+loadPipeline();
+
+/* ---------- Valuation ---------- */
+let activeCapitalStructureId = null;
+
+function updateValuationFieldVisibility() {
+  const method = document.getElementById("val-method").value;
+  document.getElementById("val-fields-dcf").style.display = method === "dcf" ? "" : "none";
+  document.getElementById("val-fields-arr").style.display = method === "arr_multiple" ? "" : "none";
+  document.getElementById("val-fields-manual").style.display = method === "dcf" || method === "arr_multiple" ? "none" : "";
+}
+document.getElementById("val-method").addEventListener("change", updateValuationFieldVisibility);
+
+async function loadValuationTab() {
+  await loadDealPicker("val-deal");
+  updateValuationFieldVisibility();
+  await refreshValuationTab();
+}
+document.getElementById("val-deal").addEventListener("change", refreshValuationTab);
+
+async function refreshValuationTab() {
+  await Promise.all([refreshValuationCases(), refreshDebtFacilities()]);
+}
+
+async function refreshValuationCases() {
+  const dealId = document.getElementById("val-deal").value;
+  const listEl = document.getElementById("val-cases-list");
+  if (!dealId) {
+    listEl.innerHTML = "";
+    return;
+  }
+  try {
+    const { valuationCases } = await apiFetch(`/api/valuation-cases?dealId=${encodeURIComponent(dealId)}`);
+    listEl.innerHTML =
+      valuationCases
+        .slice()
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map(
+          (v) =>
+            `<div class="artifact-row"><span><span class="badge badge-neutral">${escHtml(v.method.replace(/_/g, " "))}</span> ${v.impliedValueM != null ? `$${v.impliedValueM.toFixed(2)}M` : "—"}${v.notes ? ` · ${escHtml(v.notes)}` : ""}</span><span>${escHtml(new Date(v.updatedAt).toLocaleDateString())}</span></div>`
+        )
+        .join("") || '<div class="pipe-empty">No valuation cases yet.</div>';
+  } catch (e) {
+    listEl.innerHTML = errorHtml(e.message);
+  }
+}
+
+document.getElementById("val-add-btn").addEventListener("click", async () => {
+  const dealId = document.getElementById("val-deal").value;
+  if (!dealId) return;
+  const method = document.getElementById("val-method").value;
+  const body = { dealId, method, notes: document.getElementById("val-notes").value.trim() || undefined };
+  if (method === "dcf") {
+    body.cashFlows = document
+      .getElementById("val-cashflows")
+      .value.split(",")
+      .map((s) => parseFloat(s.trim()))
+      .filter((n) => !isNaN(n));
+    const discountPct = parseFloat(document.getElementById("val-discount-rate").value);
+    body.discountRate = !isNaN(discountPct) ? discountPct / 100 : undefined; // dcfValue takes a fraction (0.1 = 10%), the field takes a percent
+    const growthPct = parseFloat(document.getElementById("val-growth-rate").value);
+    body.perpetualGrowthRate = !isNaN(growthPct) ? growthPct / 100 : undefined;
+  } else if (method === "arr_multiple") {
+    body.metricValue = parseFloat(document.getElementById("val-metric-value").value) || undefined;
+    body.multiple = parseFloat(document.getElementById("val-multiple").value) || undefined;
+  } else {
+    body.impliedValueM = parseFloat(document.getElementById("val-implied-value").value) || undefined;
+  }
+  const btn = document.getElementById("val-add-btn");
+  btn.disabled = true;
+  try {
+    await apiFetch("/api/valuation-cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    document.getElementById("val-notes").value = "";
+    await refreshValuationCases();
+  } catch (e) {
+    document.getElementById("val-cases-list").innerHTML = errorHtml(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function refreshDebtFacilities() {
+  const dealId = document.getElementById("val-deal").value;
+  const hintEl = document.getElementById("val-capstruct-hint");
+  const listEl = document.getElementById("df-list");
+  activeCapitalStructureId = null;
+  if (!dealId) {
+    hintEl.textContent = "";
+    listEl.innerHTML = "";
+    return;
+  }
+  try {
+    const { capitalStructures } = await apiFetch(`/api/capital-structures?dealId=${encodeURIComponent(dealId)}`);
+    if (!capitalStructures.length) {
+      hintEl.textContent = "No capital structure yet — run Evaluation on this deal first.";
+      listEl.innerHTML = "";
+      document.getElementById("df-add-btn").disabled = true;
+      return;
+    }
+    const latest = capitalStructures.slice().sort((a, b) => b.updatedAt - a.updatedAt)[0];
+    activeCapitalStructureId = latest.id;
+    document.getElementById("df-add-btn").disabled = false;
+    hintEl.textContent = `Capital structure: equity $${latest.equityM.toFixed(2)}M${latest.seniorDebtM != null ? `, senior debt $${latest.seniorDebtM.toFixed(2)}M` : ""}`;
+    const { debtFacilities } = await apiFetch(`/api/debt-facilities?capitalStructureId=${encodeURIComponent(activeCapitalStructureId)}`);
+    listEl.innerHTML =
+      debtFacilities
+        .map(
+          (f) =>
+            `<div class="artifact-row"><span><span class="badge badge-neutral">${escHtml(f.type.replace(/_/g, " "))}</span> ${escHtml(f.name)} — $${f.principalM.toFixed(2)}M${f.interestRateDescription ? ` · ${escHtml(f.interestRateDescription)}` : ""}</span><span>${f.maturityDate ? escHtml(f.maturityDate) : ""}</span></div>`
+        )
+        .join("") || '<div class="pipe-empty">No debt facilities recorded.</div>';
+  } catch (e) {
+    listEl.innerHTML = errorHtml(e.message);
+  }
+}
+
+document.getElementById("df-add-btn").addEventListener("click", async () => {
+  if (!activeCapitalStructureId) return;
+  const body = {
+    capitalStructureId: activeCapitalStructureId,
+    name: document.getElementById("df-name").value.trim(),
+    type: document.getElementById("df-type").value,
+    principalM: parseFloat(document.getElementById("df-principal").value) || 0,
+    interestRateDescription: document.getElementById("df-rate").value.trim() || undefined,
+    maturityDate: document.getElementById("df-maturity").value || undefined,
+  };
+  if (!body.name) return;
+  const btn = document.getElementById("df-add-btn");
+  btn.disabled = true;
+  try {
+    await apiFetch("/api/debt-facilities", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    document.getElementById("df-name").value = "";
+    document.getElementById("df-principal").value = "";
+    document.getElementById("df-rate").value = "";
+    document.getElementById("df-maturity").value = "";
+    await refreshDebtFacilities();
+  } catch (e) {
+    document.getElementById("df-list").innerHTML = errorHtml(e.message);
+  } finally {
+    btn.disabled = false;
+  }
 });

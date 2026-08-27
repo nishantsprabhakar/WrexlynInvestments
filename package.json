@@ -11,7 +11,8 @@
     "dev": "tsx server/index.ts",
     "typecheck": "tsc -p . --noEmit",
     "test": "npm run build && node scripts/run-tests.js",
-    "migrate:legacy": "tsx server/domain/migrateLegacy.ts"
+    "migrate:legacy": "tsx server/domain/migrateLegacy.ts",
+    "generate:icons": "node scripts/generate-icon.js"
   },
   "engines": {
     "node": ">=18"
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "puppeteer": "^25.6.0",
     "tsx": "^4.15.0",
     "typescript": "5.9.3"
   }

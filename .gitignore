@@ -7,3 +7,6 @@ dist/
 # not source.
 data/
 workspace/
+
+# Inno Setup's compiled installer output — the .iss script and icons are source, this isn't.
+installer/windows/output/
