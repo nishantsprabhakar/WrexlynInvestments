@@ -22,6 +22,7 @@ import { getSettings, saveSettings } from "./lib/settings";
 import { findProjectRoot } from "./lib/projectRoot";
 import { listAuditEntries } from "./domain/audit/auditLog";
 import { syncDomainDeal } from "./domain/sync";
+import { ensureRegisteredAndActive, startPeriodicRecheck } from "./licensing";
 import {
   icDecisions,
   capTables,
@@ -57,7 +58,8 @@ const PUBLIC_DIR = path.join(PROJECT_ROOT, "public");
 const MAX_BODY_BYTES = 60 * 1024 * 1024; // generous cap for base64-encoded decks/models/data-room PDFs
 
 // Exact-match allowlist only (not a general root-directory server) — lets the in-app footer
-// link straight to the real license/policy files instead of duplicating their text into public/.
+// and welcome banner link straight to the real root-level docs instead of duplicating their
+// text into public/.
 const LEGAL_DOCS = new Set([
   "/LICENSE",
   "/TERMS_OF_SERVICE.md",
@@ -65,6 +67,7 @@ const LEGAL_DOCS = new Set([
   "/PRIVACY_POLICY.md",
   "/SECURITY.md",
   "/THIRD_PARTY_NOTICES.md",
+  "/GETTING_STARTED.md",
 ]);
 
 const MODEL_CATALOG: Record<string, string[]> = {
@@ -997,6 +1000,19 @@ const server = http.createServer((req, res) => {
 // LAN by default with no auth in front of it. Set HOST to override for an explicit, deliberate
 // LAN-exposure decision (see SECURITY.md).
 const HOST = process.env.HOST || "127.0.0.1";
-server.listen(PORT, HOST, () => {
-  console.log(`Wrexlyn for Investments listening on http://${HOST}:${PORT}`);
+
+async function main(): Promise<void> {
+  // Terms-acceptance always runs; license registration/checkin only if a license-server is
+  // configured — see server/licensing.ts's header comment for why.
+  await ensureRegisteredAndActive();
+  startPeriodicRecheck();
+
+  server.listen(PORT, HOST, () => {
+    console.log(`Wrexlyn for Investments listening on http://${HOST}:${PORT}`);
+  });
+}
+
+main().catch((err) => {
+  console.error("Fatal startup error:", err);
+  process.exit(1);
 });

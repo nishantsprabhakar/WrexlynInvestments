@@ -3,7 +3,7 @@
 **Last updated: 2026-08-27**
 
 Wrexlyn for Investments is developed and licensed by Nishant Prabhakar ("Developer," "we," "us,"
-or "our"). For Sections 7 and 8, "Protected Parties" means Nishant Prabhakar personally, the
+or "our"). For Sections 8 and 9, "Protected Parties" means Nishant Prabhakar personally, the
 Developer, any entity through which the Software is owned or operated, and each of their past and
 present affiliates, licensors, contractors, contributors, officers, directors, employees, agents,
 representatives, successors, and assigns.
@@ -101,7 +101,21 @@ it runs on, its operating system credential store, backups, and any account cred
 provide to the Software or to third-party providers through it. **This is a description of
 current design, not a warranty.**
 
-## 7. Limitation of Liability
+## 7. License Registration and Activation
+
+If this installation has been configured with a license-server address (an administrator/operator
+setting), the Software registers itself once (sending your name, email, and a randomly generated
+device identifier to that license-server) and periodically checks in to confirm it remains
+authorized to run. This is a real technical control, not just a contractual one: an installation
+whose access is revoked at the license-server will stop running on its next check-in (after a
+bounded offline grace period, so a temporary loss of connectivity does not itself block you). If no
+license-server is configured, none of this runs, and the Software operates exactly as described
+elsewhere in these Terms with no registration step. See PRIVACY_POLICY.md Section 3 for exactly
+what data this involves. This mechanism does not itself grant any right beyond what LICENSE grants
+— an "active," non-revoked registration is a technical precondition for the Software to run, not a
+substitute for having a valid license under Section 12.
+
+## 8. Limitation of Liability
 
 TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL ANY PROTECTED PARTY BE LIABLE
 FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY, OR PUNITIVE DAMAGES, OR ANY LOSS
@@ -116,9 +130,9 @@ YOU PAID FOR THE SOFTWARE IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM, OR (B) 
 (USD $10). Some jurisdictions do not allow the exclusion or limitation of certain damages, so some
 of the above limitations may not apply to you.
 
-## 8. Indemnification
+## 9. Indemnification
 
-### 8.1 Release and covenant not to sue
+### 9.1 Release and covenant not to sue
 
 To the maximum extent permitted by applicable law, you irrevocably release and discharge each
 Protected Party from claims, demands, causes of action, liabilities, damages, losses, costs, and
@@ -129,7 +143,7 @@ generated work. You covenant not to bring or assist a claim against a Protected 
 released matter. This release does not apply to liability that applicable law does not permit you
 to waive.
 
-### 8.2 Duty to defend, indemnify, and hold harmless
+### 9.2 Duty to defend, indemnify, and hold harmless
 
 To the maximum extent permitted by applicable law, you will defend, indemnify, and hold harmless
 each Protected Party from and against all first-party and third-party allegations, claims,
@@ -157,7 +171,7 @@ costs, and enforcement costs, arising out of or relating to:
 If you use the Software for or on behalf of an organization or fund, you and that organization
 are jointly and severally responsible for these obligations to the extent permitted by law.
 
-### 8.3 Defense procedure and payment
+### 9.3 Defense procedure and payment
 
 The relevant Protected Party may notify you of an indemnified matter, but delayed notice reduces
 your obligation only to the extent the delay materially prejudices the defense. The Protected
@@ -168,7 +182,7 @@ admits fault, imposes an obligation, restricts activity, fails to provide a comp
 release, or requires payment by a Protected Party. These remedies are cumulative and are not the
 Protected Parties' exclusive remedies.
 
-### 8.4 Commercial-user insurance
+### 9.4 Commercial-user insurance
 
 If you use the Software commercially, as part of managing a fund, or provide it or its output to
 third parties, you are responsible for maintaining insurance appropriate to your activities and
@@ -176,14 +190,14 @@ risks, including technology errors and omissions, professional/fiduciary liabili
 liability coverage where commercially reasonable. Insurance does not limit your obligations under
 this Section.
 
-### 8.5 Mandatory-law limitation and survival
+### 9.5 Mandatory-law limitation and survival
 
 This Section applies only to the maximum extent permitted by applicable law and will not require
 indemnification for a Protected Party's conduct to the extent a final, non-appealable judgment
-determines that applicable law prohibits indemnification for that conduct. Section 8 survives
+determines that applicable law prohibits indemnification for that conduct. Section 9 survives
 expiration or termination of access, these Terms, and any license.
 
-## 9. No Professional Advice
+## 10. No Professional Advice
 
 Nothing produced by the Software constitutes legal, financial, tax, accounting, or other
 professional advice, even where the Software is used to draft documents, analyses, financial
@@ -191,7 +205,7 @@ models, or IC memoranda touching those domains. You should consult a qualified p
 before acting on anything the Software produces in a professional, fiduciary, or regulated
 context.
 
-## 10. Compliance and Export Control
+## 11. Compliance and Export Control
 
 You are solely responsible for ensuring that your use of the Software, and of any third-party
 provider it connects to, complies with all applicable laws and regulations in your jurisdiction,
@@ -200,7 +214,7 @@ sanctions laws. You represent that you are not located in, or a national or resi
 country subject to a comprehensive U.S. or applicable local embargo, and that you are not on any
 restricted-party list.
 
-## 11. Ownership and License
+## 12. Ownership and License
 
 The Software's source code, documentation, and assets (excluding third-party open-source
 dependencies used unmodified, which remain under their own licenses) are the proprietary property
@@ -211,19 +225,19 @@ input to the Software. Ownership of AI-generated output itself is an unsettled a
 multiple jurisdictions; the Developer makes no representation as to who owns, or whether anyone
 can own, content generated by a third-party AI model, and disclaims any resulting liability.
 
-## 12. Beta / Evolving Software
+## 13. Beta / Evolving Software
 
 Wrexlyn for Investments is under active development and its features, defaults, providers, and
 behavior can and do change, including changes that affect functionality you previously relied on.
 No specific feature, provider, or behavior is guaranteed to remain available or unchanged.
 
-## 13. Termination
+## 14. Termination
 
 The Developer may discontinue, modify, or restrict the Software at any time, for any reason,
 without liability to you. These Terms survive termination to the extent their content is intended
-to survive (including Sections 2, 3, 4, 5, 6, 7, 8, 9, 11, 14, 19, 20, and 21).
+to survive (including Sections 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 21, and 22).
 
-## 14. Governing Law and Dispute Resolution
+## 15. Governing Law and Dispute Resolution
 
 Unless a separate signed agreement states otherwise, these Terms are governed by the laws of
 India, without regard to conflict-of-laws principles. Subject to the following sentence, the
@@ -233,13 +247,13 @@ consent to the personal jurisdiction of those courts. This Section does not over
 non-waivable right that applicable consumer-protection law in your own jurisdiction gives you to
 bring a claim in another forum or under another law.
 
-## 15. Changes to These Terms
+## 16. Changes to These Terms
 
 The Developer may update these Terms from time to time. Continued use of the Software after an
 update constitutes acceptance of the revised Terms. Material changes will be reflected by an
 updated "Last updated" date above.
 
-## 16. Severability and Entire Agreement
+## 17. Severability and Entire Agreement
 
 If any provision of these Terms is held unenforceable, the remaining provisions remain in full
 force and effect, and the unenforceable provision will be reformed to the minimum extent necessary
@@ -248,28 +262,28 @@ to make it enforceable while preserving its intent. These Terms, together with `
 between you and the Developer regarding the Software and supersede any prior agreements on the
 subject.
 
-## 17. Contact
+## 18. Contact
 
 Legal, privacy, and support requests may be submitted to Nishant Prabhakar through the contact
 channel listed on the official repository for this Software. Do not include passwords, API keys,
 confidential Deal Data, or vulnerability details in a public issue. Security reports must follow
 [SECURITY.md](SECURITY.md).
 
-## 18. Force Majeure
+## 19. Force Majeure
 
 No Protected Party is liable for any failure or delay in performance to the extent caused by
 circumstances beyond that party's reasonable control, including internet or infrastructure
 outages, denial-of-service or other attacks, acts of God, war, terrorism, civil unrest, labor
 disputes, governmental action, or failure of a third-party provider.
 
-## 19. No Waiver
+## 20. No Waiver
 
 No failure or delay by a Protected Party in exercising any right under these Terms operates as a
 waiver of that right, and no single or partial exercise of a right precludes any other or further
 exercise of it or any other right. A waiver is effective only if in writing and signed by the
 Developer.
 
-## 20. Assignment
+## 21. Assignment
 
 You may not assign or transfer these Terms or any rights under them, by operation of law or
 otherwise, without the Developer's prior written consent, and any attempted assignment in
@@ -277,7 +291,7 @@ violation of this Section is void. The Developer may freely assign these Terms, 
 part, including in connection with a merger, acquisition, corporate reorganization, or sale of all
 or substantially all of the Developer's relevant assets, without your consent.
 
-## 21. Feedback
+## 22. Feedback
 
 If you submit ideas, suggestions, bug reports, or other feedback about the Software, you grant the
 Developer a perpetual, irrevocable, worldwide, royalty-free, sublicensable license to use, modify,
@@ -286,7 +300,7 @@ without any obligation, attribution, or compensation to you. Do not submit feedb
 not free to license on these terms, or that you intend to keep confidential — and never submit
 actual Deal Data as "feedback."
 
-## 22. Notices
+## 23. Notices
 
 Legal notices to the Developer must be sent in writing through the private contact channel listed
 on the official repository for this Software and are effective upon actual receipt. The Developer

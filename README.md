@@ -56,6 +56,29 @@ server, and open your browser — no separate `npm install`/`npm run build`/`npm
 Every path above requires [Node.js](https://nodejs.org) 18+ already installed; the launchers detect
 its absence and tell you where to get it rather than failing silently.
 
+## Commercial licensing
+
+Every install runs completely unlicensed by default — no server, no registration, no friction —
+exactly as described above. A real license-activation gate (device registration + periodic,
+revocable check-in against a license-server, so a non-paying customer's access can be cut off) is
+built in but **off** until you deliberately turn it on:
+
+1. Deploy `license-server/` (a small Express+Postgres service — see its own
+   [README](license-server/README.md) for local dev and deploy steps; a ready-to-use
+   [`render.yaml`](render.yaml) Blueprint is at the repo root).
+2. Point every install at it by setting `WREXLYN_INVESTMENTS_LICENSE_SERVER_URL` to that service's
+   public URL (e.g. bake it into the launcher scripts you distribute, or set it in the environment
+   before running `Start Wrexlyn Investments.bat`/`.sh`).
+
+Once that's set, first launch registers the install (prompts for name + email in the terminal, or
+reads `WREXLYN_INVESTMENTS_NAME`/`WREXLYN_INVESTMENTS_EMAIL` if no terminal is attached) and every
+launch after that checks in; revoke a customer from the license-server's `/admin` dashboard and
+their next check-in hard-blocks (after a 72-hour offline grace period, so a brief outage doesn't
+lock out a paying customer). `WREXLYN_INVESTMENTS_SKIP_LICENSE_CHECK=1` bypasses the check-in only
+(never the one-time Terms-of-Service acceptance, which always runs regardless). See
+[`server/licensing.ts`](server/licensing.ts) for the full mechanism and
+[`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) Section 3 for exactly what data this involves.
+
 ## Project layout
 
 - `server/lib/` — vendored Wrexlyn backend modules (LLM providers, document tools, secret storage) plus a few small additions (`read_docx`/`read_pptx`/`read_xlsx`) for ingesting uploads.

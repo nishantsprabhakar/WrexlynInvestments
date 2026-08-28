@@ -371,7 +371,27 @@ function renderPipeline() {
     if (d.rejectionReason) reasonCounts[d.rejectionReason] = (reasonCounts[d.rejectionReason] || 0) + 1;
   });
 
+  const welcomeBanner = deals.length
+    ? ""
+    : `
+    <div class="panel welcome-banner">
+      <div class="panel-title">Welcome to Wrexlyn for Investments</div>
+      <h2 style="margin-top:0">Get started in 3 steps</h2>
+      <p class="sub">This is your fund's deal command center. Everything below fills in as you work deals through it — nothing is faked or pre-populated.</p>
+      <div class="welcome-steps">
+        <div class="welcome-step"><b>1. Screen</b><span>Run a company through <b>Screening</b> (AI-rated across 8 PE dimensions) or add it straight to the <b>Pipeline</b>.</span></div>
+        <div class="welcome-step"><b>2. Analyze</b><span>Use <b>Diligence</b>, <b>Evaluation</b>, <b>Valuation</b>, and <b>Cap Table</b> to build the case, then record the outcome in <b>IC Decisions</b>.</span></div>
+        <div class="welcome-step"><b>3. Track</b><span>Once invested, monitor it in <b>Portfolio</b> through to exit. Firm-level setup (funds, teams) lives under <b>Fund &amp; Team</b>.</span></div>
+      </div>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary" id="pipe-welcome-add-btn">+ Add Your First Deal</button>
+        <button class="btn btn-sm" id="pipe-welcome-sample-btn" type="button">Load Sample Deals</button>
+        <span class="hint">or see <a href="/GETTING_STARTED.md" target="_blank">Getting Started</a> for a full walkthrough</span>
+      </div>
+    </div>`;
+
   document.getElementById("pipeline-content").innerHTML = `
+    ${welcomeBanner}
     <div class="pipe-toolbar">
       <h2 style="margin:0">Deal Pipeline</h2>
       <button class="btn btn-primary" id="pipe-new-deal-btn">+ New Deal</button>
@@ -422,6 +442,28 @@ function renderPipeline() {
   document.getElementById("pipe-filter-stage").addEventListener("change", renderPipelineTable);
   document.getElementById("pipe-filter-status").addEventListener("change", renderPipelineTable);
   document.getElementById("pipe-new-deal-btn").addEventListener("click", openNewDealModal);
+  document.getElementById("pipe-welcome-add-btn")?.addEventListener("click", openNewDealModal);
+  document.getElementById("pipe-welcome-sample-btn")?.addEventListener("click", loadSampleDeals);
+}
+
+const SAMPLE_DEALS = [
+  { companyName: "Meridian Logistics", sector: "Logistics & Supply Chain", strategy: "pe_buyout", dealSize: "$45M", stage: "3. Preliminary DD", notes: "Sample deal — safe to delete. Regional 3PL with sticky enterprise contracts." },
+  { companyName: "Northwind Analytics", sector: "SaaS / Data Infrastructure", strategy: "growth_equity", dealSize: "$18M", stage: "2. Initial Screening", notes: "Sample deal — safe to delete. Usage-based analytics platform, Series C." },
+  { companyName: "Solace Health", sector: "Digital Health", strategy: "vc", dealSize: "$6M", stage: "1. Deal Sourcing", notes: "Sample deal — safe to delete. Early-stage remote-monitoring device startup." },
+  { companyName: "Ironclad Fasteners", sector: "Industrial Manufacturing", strategy: "pe_buyout", dealSize: "$62M", stage: "7. Term Sheet / Negotiation", notes: "Sample deal — safe to delete. Family-owned precision-components manufacturer." },
+];
+
+async function loadSampleDeals() {
+  const btn = document.getElementById("pipe-welcome-sample-btn");
+  if (btn) { btn.disabled = true; btn.textContent = "Loading…"; }
+  try {
+    for (const deal of SAMPLE_DEALS) {
+      await apiFetch("/api/pipeline/deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(deal) });
+    }
+    await loadPipeline();
+  } catch (e) {
+    document.getElementById("pipeline-content").innerHTML = errorHtml(e.message);
+  }
 }
 
 function renderPipelineTable() {

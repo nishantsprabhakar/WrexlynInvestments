@@ -1,0 +1,20 @@
+# Render Blueprint for license-server — see license-server/README.md for the full deployment
+# walkthrough. Once this repo is connected to a Render account, "New > Blueprint" picks this file
+# up automatically and provisions the service below; DATABASE_URL/ADMIN_PASSWORD are marked
+# sync:false so Render prompts for them at creation time instead of guessing values — paste in
+# your own Neon/Supabase connection string and the admin password from license-server/.env.
+services:
+  - type: web
+    name: wrexlyn-investments-license-server
+    runtime: node
+    plan: free
+    rootDir: license-server
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: NODE_ENV
+        value: production

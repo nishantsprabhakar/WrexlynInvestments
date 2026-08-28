@@ -1,0 +1,37 @@
+{
+  "name": "wrexlyn-investments-license-server",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Registration, licensing, and admin dashboard backend for Wrexlyn for Investments installs.",
+  "author": "Nishant Prabhakar",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p . && node -e \"require('fs').copyFileSync('src/schema.sql','dist/schema.sql')\"",
+    "start": "node dist/server.js",
+    "dev": "tsx src/server.ts",
+    "typecheck": "tsc -p . --noEmit",
+    "test": "npm run build && node scripts/run-tests.js",
+    "verify": "npm run typecheck && npm run test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.7",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2",
+    "tsx": "^4.15.0",
+    "typescript": "5.9.3"
+  }
+}
