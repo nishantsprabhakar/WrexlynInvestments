@@ -47,10 +47,38 @@
   </nav>
   <div class="top-right">
     <span class="status-chip"><span class="status-dot"></span> LIVE</span>
+    <span class="status-chip" id="auth-user-chip" style="display:none"></span>
+    <button class="icon-btn" id="auth-logout-btn" title="Sign out" style="display:none">⎋</button>
     <button class="icon-btn" id="theme-btn" title="Theme">◐</button>
     <button class="icon-btn" id="settings-btn" title="Settings">⚙</button>
   </div>
 </header>
+
+<!-- Auth gate — blocks the whole app until signed in; toggles between first-run bootstrap and normal login. -->
+<div class="auth-gate" id="auth-gate">
+  <div class="auth-card">
+    <div class="brand" style="justify-content:center;margin-bottom:20px">
+      <img class="brand-mark" src="/icon.svg" alt="Wrexlyn" width="32" height="32"/>
+      <span class="brand-name" style="font-size:16px">Wrexlyn<em> Investments</em></span>
+    </div>
+    <div id="auth-bootstrap-form">
+      <h2>Create the admin account</h2>
+      <p class="sub">One-time setup — the first account created here becomes a Partner with full access.</p>
+      <div class="field"><label>Your name</label><input type="text" id="auth-bs-name"/></div>
+      <div class="field"><label>Email</label><input type="email" id="auth-bs-email"/></div>
+      <div class="field"><label>Password</label><input type="password" id="auth-bs-password"/></div>
+      <button class="btn btn-primary" id="auth-bs-submit" style="width:100%;justify-content:center">Create Account</button>
+      <div id="auth-bs-error" class="error-box" style="display:none;margin-top:12px"></div>
+    </div>
+    <div id="auth-login-form" style="display:none">
+      <h2>Sign in</h2>
+      <div class="field"><label>Email</label><input type="email" id="auth-login-email"/></div>
+      <div class="field"><label>Password</label><input type="password" id="auth-login-password"/></div>
+      <button class="btn btn-primary" id="auth-login-submit" style="width:100%;justify-content:center">Sign In</button>
+      <div id="auth-login-error" class="error-box" style="display:none;margin-top:12px"></div>
+    </div>
+  </div>
+</div>
 
 <!-- PIPELINE -->
 <main class="view active" id="view-pipeline">
@@ -431,6 +459,30 @@
     </div>
     <button class="btn btn-sm" id="im-add-btn" type="button" style="margin-top:8px">+ Add Mandate</button>
     <div id="im-list" style="margin-top:12px"></div>
+  </div>
+
+  <div class="panel" id="ft-users-panel" style="display:none">
+    <div class="panel-title">Users</div>
+    <p class="sub">Partner-only. Roles gate what each person can see or approve — see TERMS_OF_SERVICE.md.</p>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Name</label><input type="text" id="usr-name"/></div>
+      <div class="field" style="margin:0"><label>Email</label><input type="email" id="usr-email"/></div>
+    </div>
+    <div class="two-col">
+      <div class="field" style="margin:0"><label>Password</label><input type="password" id="usr-password"/></div>
+      <div class="field" style="margin:0"><label>Role</label>
+        <select id="usr-role">
+          <option value="partner">Partner</option>
+          <option value="principal">Principal</option>
+          <option value="associate">Associate</option>
+          <option value="analyst" selected>Analyst</option>
+          <option value="compliance">Compliance</option>
+          <option value="ops">Ops</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-sm" id="usr-add-btn" type="button" style="margin-top:8px">+ Add User</button>
+    <div id="usr-list" style="margin-top:12px"></div>
   </div>
 </main>
 

@@ -23,6 +23,10 @@ import { findProjectRoot } from "./lib/projectRoot";
 import { listAuditEntries } from "./domain/audit/auditLog";
 import { syncDomainDeal } from "./domain/sync";
 import { ensureRegisteredAndActive, startPeriodicRecheck } from "./licensing";
+import { users, findUserByEmail, publicUser, ROLES, type Role } from "./auth/users";
+import { hashPassword, verifyPassword } from "./auth/passwords";
+import { createSession, destroySession, validateSession } from "./auth/sessions";
+import { can, requiredCapability } from "./auth/permissions";
 import {
   icDecisions,
   capTables,
@@ -84,6 +88,29 @@ function sendJson(res: http.ServerResponse, status: number, data: unknown): void
   const body = JSON.stringify(data);
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Content-Length": Buffer.byteLength(body) });
   res.end(body);
+}
+
+const SESSION_COOKIE = "wrexlyn_investments_session";
+const SESSION_MAX_AGE_SECONDS = 14 * 24 * 60 * 60; // matches auth/sessions.ts's SESSION_TTL_MS
+
+function getCookie(req: http.IncomingMessage, name: string): string | undefined {
+  const header = req.headers.cookie;
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx === -1) continue;
+    if (part.slice(0, idx).trim() === name) return decodeURIComponent(part.slice(idx + 1).trim());
+  }
+  return undefined;
+}
+
+function setSessionCookie(res: http.ServerResponse, token: string): void {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=${token}; Max-Age=${SESSION_MAX_AGE_SECONDS}; Path=/; HttpOnly; SameSite=Lax${secure}`);
+}
+
+function clearSessionCookie(res: http.ServerResponse): void {
+  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`);
 }
 
 function readJsonBody(req: http.IncomingMessage): Promise<any> {
@@ -195,6 +222,132 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   const method = req.method || "GET";
 
   try {
+    // --- Auth: public routes, reachable without a session ---
+    if (pathname === "/api/auth/bootstrap" && method === "POST") {
+      if (users.list().length > 0) {
+        sendJson(res, 403, { error: "an account already exists — use /api/auth/login" });
+        return true;
+      }
+      const body = await readJsonBody(req);
+      if (!body.name || !body.email || !body.password) {
+        sendJson(res, 400, { error: "name, email, and password are required" });
+        return true;
+      }
+      const user = users.create({ name: body.name, email: body.email, passwordHash: await hashPassword(body.password), role: "partner", active: true });
+      const { token } = createSession(user.id);
+      setSessionCookie(res, token);
+      sendJson(res, 200, { user: publicUser(user) });
+      return true;
+    }
+
+    if (pathname === "/api/auth/login" && method === "POST") {
+      const body = await readJsonBody(req);
+      const user = findUserByEmail(String(body.email || ""));
+      if (!user || !user.active || !(await verifyPassword(String(body.password || ""), user.passwordHash))) {
+        sendJson(res, 401, { error: "invalid email or password" });
+        return true;
+      }
+      const { token } = createSession(user.id);
+      setSessionCookie(res, token);
+      sendJson(res, 200, { user: publicUser(user) });
+      return true;
+    }
+
+    // --- Auth gate: everything from here on requires a valid, active session ---
+    const currentUser = users.get(validateSession(getCookie(req, SESSION_COOKIE)) || "");
+    if (!currentUser || !currentUser.active) {
+      sendJson(res, 401, { error: "not authenticated", bootstrapNeeded: users.list().length === 0 });
+      return true;
+    }
+
+    if (pathname === "/api/auth/logout" && method === "POST") {
+      const token = getCookie(req, SESSION_COOKIE);
+      if (token) destroySession(token);
+      clearSessionCookie(res);
+      sendJson(res, 200, { ok: true });
+      return true;
+    }
+
+    if (pathname === "/api/auth/me" && method === "GET") {
+      sendJson(res, 200, { user: publicUser(currentUser) });
+      return true;
+    }
+
+    if (pathname === "/api/auth/users" && method === "GET") {
+      if (currentUser.role !== "partner") {
+        sendJson(res, 403, { error: "forbidden: partner role required" });
+        return true;
+      }
+      sendJson(res, 200, { users: users.list().map(publicUser) });
+      return true;
+    }
+
+    if (pathname === "/api/auth/users" && method === "POST") {
+      if (currentUser.role !== "partner") {
+        sendJson(res, 403, { error: "forbidden: partner role required" });
+        return true;
+      }
+      const body = await readJsonBody(req);
+      if (!body.name || !body.email || !body.password || !body.role) {
+        sendJson(res, 400, { error: "name, email, password, and role are required" });
+        return true;
+      }
+      if (!(ROLES as readonly string[]).includes(body.role)) {
+        sendJson(res, 400, { error: `role must be one of: ${ROLES.join(", ")}` });
+        return true;
+      }
+      if (findUserByEmail(body.email)) {
+        sendJson(res, 400, { error: "a user with that email already exists" });
+        return true;
+      }
+      const user = users.create({ name: body.name, email: body.email, passwordHash: await hashPassword(body.password), role: body.role as Role, active: true });
+      sendJson(res, 200, { user: publicUser(user) });
+      return true;
+    }
+
+    if (pathname === "/api/auth/users" && (method === "PATCH" || method === "PUT")) {
+      if (currentUser.role !== "partner") {
+        sendJson(res, 403, { error: "forbidden: partner role required" });
+        return true;
+      }
+      const id = url.searchParams.get("id");
+      const body = await readJsonBody(req);
+      if (!id || !users.get(id)) {
+        sendJson(res, 404, { error: "user not found" });
+        return true;
+      }
+      const patch: Record<string, unknown> = {};
+      if (body.role !== undefined) {
+        if (!(ROLES as readonly string[]).includes(body.role)) {
+          sendJson(res, 400, { error: `role must be one of: ${ROLES.join(", ")}` });
+          return true;
+        }
+        patch.role = body.role;
+      }
+      if (body.active !== undefined) patch.active = !!body.active;
+      if (body.password) patch.passwordHash = await hashPassword(body.password);
+      const user = users.update(id, patch);
+      sendJson(res, 200, { user: user ? publicUser(user) : null });
+      return true;
+    }
+
+    // --- Capability gate for every other /api/* mutation. GETs need only the session above.
+    // An unmapped mutation (requiredCapability returns null) fails closed to partner-only —
+    // this is what protects /api/settings and /api/api-keys without needing a 7th capability
+    // bucket just for those two routes.
+    if (method !== "GET") {
+      const capability = requiredCapability(method, pathname);
+      if (capability) {
+        if (!can(currentUser.role, capability)) {
+          sendJson(res, 403, { error: `forbidden: requires the '${capability}' capability` });
+          return true;
+        }
+      } else if (currentUser.role !== "partner") {
+        sendJson(res, 403, { error: "forbidden: partner role required" });
+        return true;
+      }
+    }
+
     if (pathname === "/api/screening" && method === "POST") {
       const body = await readJsonBody(req);
       const result = await runScreeningFlow(body);

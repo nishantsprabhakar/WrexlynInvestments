@@ -20,6 +20,11 @@ function errorHtml(msg) {
 }
 async function apiFetch(url, opts) {
   const res = await fetch(url, opts);
+  if (res.status === 401 && !url.startsWith("/api/auth/")) {
+    currentUser = null;
+    showAuthGate(false);
+    throw new Error("Session expired — please sign in again.");
+  }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try {
@@ -630,6 +635,10 @@ async function loadICDecisionsTab() {
   await refreshICMemoranda();
   await refreshICDecisionsList();
   await refreshMilestones();
+  document.getElementById("ic-record-btn").style.display = can("decide") ? "" : "none";
+  if (currentUser && !document.getElementById("ic-decided-by").value) {
+    document.getElementById("ic-decided-by").value = currentUser.name;
+  }
 }
 document.getElementById("ic-deal").addEventListener("change", async () => {
   await refreshICMemoranda();
@@ -1156,6 +1165,10 @@ function renderPortfolioDetail({ investment, kpis, followOnDecisions, exitScenar
     </div>
   `;
 
+  document.getElementById("pf-fo-add").style.display = can("decide") ? "" : "none";
+  document.getElementById("pf-rp-add").style.display = can("decide") ? "" : "none";
+  if (currentUser) document.getElementById("pf-fo-decided-by").value = currentUser.name;
+
   document.getElementById("pf-kpi-add").addEventListener("click", async () => {
     try {
       await apiFetch("/api/portfolio/kpis", {
@@ -1404,6 +1417,10 @@ async function loadFundTeamTab() {
   await refreshDealTeam();
   await refreshVehicles();
   await refreshMandates();
+  await loadUsersPanel();
+  ["ct-add-btn", "dt-add-member-btn", "iv-add-btn", "iv-assign-btn", "im-add-btn"].forEach((id) => {
+    document.getElementById(id).style.display = can("manage_fund_admin") ? "" : "none";
+  });
 }
 
 async function refreshContacts() {
@@ -1696,8 +1713,150 @@ document.querySelectorAll(".overlay").forEach((ov) => {
   });
 });
 
+/* ---------- Auth ---------- */
+let currentUser = null;
+const ROLE_CAPABILITIES = {
+  partner: ["manage_users", "run_ai_flows", "edit_deal", "decide", "manage_fund_admin", "manage_portfolio"],
+  principal: ["run_ai_flows", "edit_deal", "decide", "manage_fund_admin", "manage_portfolio"],
+  associate: ["run_ai_flows", "edit_deal", "manage_portfolio"],
+  analyst: ["run_ai_flows", "edit_deal"],
+  compliance: [],
+  ops: ["manage_fund_admin", "manage_portfolio"],
+};
+function can(capability) {
+  return !!currentUser && (ROLE_CAPABILITIES[currentUser.role] || []).includes(capability);
+}
+
+function showAuthGate(bootstrapNeeded) {
+  document.getElementById("auth-gate").classList.add("show");
+  document.getElementById("auth-bootstrap-form").style.display = bootstrapNeeded ? "" : "none";
+  document.getElementById("auth-login-form").style.display = bootstrapNeeded ? "none" : "";
+  document.getElementById("auth-user-chip").style.display = "none";
+  document.getElementById("auth-logout-btn").style.display = "none";
+}
+function hideAuthGate() {
+  document.getElementById("auth-gate").classList.remove("show");
+}
+function renderAuthChip() {
+  document.getElementById("auth-user-chip").innerHTML = `<span class="status-dot" style="background:var(--accent);box-shadow:none"></span> ${escHtml(currentUser.name)} · ${escHtml(currentUser.role)}`;
+  document.getElementById("auth-user-chip").style.display = "";
+  document.getElementById("auth-logout-btn").style.display = "";
+  document.getElementById("ft-users-panel").style.display = currentUser.role === "partner" ? "" : "none";
+}
+
+async function checkAuth() {
+  try {
+    const res = await fetch("/api/auth/me");
+    if (res.ok) {
+      const { user } = await res.json();
+      currentUser = user;
+      hideAuthGate();
+      renderAuthChip();
+      loadPipeline();
+      return;
+    }
+    const body = await res.json().catch(() => ({}));
+    showAuthGate(!!body.bootstrapNeeded);
+  } catch (e) {
+    showAuthGate(false);
+  }
+}
+
+document.getElementById("auth-bs-submit").addEventListener("click", async () => {
+  const name = document.getElementById("auth-bs-name").value.trim();
+  const email = document.getElementById("auth-bs-email").value.trim();
+  const password = document.getElementById("auth-bs-password").value;
+  const errEl = document.getElementById("auth-bs-error");
+  errEl.style.display = "none";
+  try {
+    const res = await fetch("/api/auth/bootstrap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password }) });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${res.status}`);
+    }
+    await checkAuth();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = "";
+  }
+});
+
+document.getElementById("auth-login-submit").addEventListener("click", async () => {
+  const email = document.getElementById("auth-login-email").value.trim();
+  const password = document.getElementById("auth-login-password").value;
+  const errEl = document.getElementById("auth-login-error");
+  errEl.style.display = "none";
+  try {
+    const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.error || `HTTP ${res.status}`);
+    }
+    await checkAuth();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.style.display = "";
+  }
+});
+
+document.getElementById("auth-logout-btn").addEventListener("click", async () => {
+  try {
+    await fetch("/api/auth/logout", { method: "POST" });
+  } finally {
+    currentUser = null;
+    showAuthGate(false);
+  }
+});
+
+/* ---------- Users (partner-only) ---------- */
+async function loadUsersPanel() {
+  if (currentUser?.role !== "partner") return;
+  try {
+    const { users } = await apiFetch("/api/auth/users");
+    document.getElementById("usr-list").innerHTML =
+      users
+        .map(
+          (u) => `<div class="artifact-row"><span><span class="badge badge-neutral">${escHtml(u.role)}</span> ${escHtml(u.name)} · ${escHtml(u.email)}${u.active ? "" : " · deactivated"}</span><span>${
+            u.id === currentUser.id
+              ? '<span class="hint">(you)</span>'
+              : `<button class="btn btn-sm usr-toggle-btn" type="button" data-id="${u.id}" data-active="${u.active}">${u.active ? "Deactivate" : "Reactivate"}</button>`
+          }</span></div>`
+        )
+        .join("") || '<div class="pipe-empty">No other users yet.</div>';
+    document.querySelectorAll(".usr-toggle-btn").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        const active = btn.dataset.active === "true";
+        await apiFetch(`/api/auth/users?id=${encodeURIComponent(btn.dataset.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ active: !active }),
+        });
+        await loadUsersPanel();
+      })
+    );
+  } catch (e) {
+    document.getElementById("usr-list").innerHTML = errorHtml(e.message);
+  }
+}
+document.getElementById("usr-add-btn").addEventListener("click", async () => {
+  const name = document.getElementById("usr-name").value.trim();
+  const email = document.getElementById("usr-email").value.trim();
+  const password = document.getElementById("usr-password").value;
+  const role = document.getElementById("usr-role").value;
+  if (!name || !email || !password) return;
+  try {
+    await apiFetch("/api/auth/users", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, role }) });
+    document.getElementById("usr-name").value = "";
+    document.getElementById("usr-email").value = "";
+    document.getElementById("usr-password").value = "";
+    await loadUsersPanel();
+  } catch (e) {
+    document.getElementById("usr-list").innerHTML = errorHtml(e.message);
+  }
+});
+
 /* ---------- initial view: the deal pipeline is the fund's command center, not a single-company form ---------- */
-loadPipeline();
+checkAuth();
 
 /* ---------- Valuation ---------- */
 let activeCapitalStructureId = null;
