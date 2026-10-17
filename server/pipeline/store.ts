@@ -5,7 +5,7 @@
  * See LICENSE for details.
  * Deal pipeline store — real server-side JSON-file persistence (an upgrade
  * over Praevix's localStorage), taxonomy taken verbatim from the reference
- * SKEGEN Fund Intelligence dashboard: 9 funnel stages, 4 statuses.
+ * Fund Intelligence dashboard: 9 funnel stages, 4 statuses.
  */
 import * as fs from "fs";
 import * as path from "path";
